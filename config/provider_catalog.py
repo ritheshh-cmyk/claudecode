@@ -36,6 +36,7 @@ ZAI_DEFAULT_BASE = "https://api.z.ai/api/anthropic/v1"
 GEMINI_DEFAULT_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
 GROQ_DEFAULT_BASE = "https://api.groq.com/openai/v1"
 CEREBRAS_DEFAULT_BASE = "https://api.cerebras.ai/v1"
+AEROLINK_DEFAULT_BASE = "https://capi.aerolink.lat/v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -244,6 +245,24 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
             "thinking",
             "native_anthropic",
             "local",
+        ),
+    ),
+    "aerolink": ProviderDescriptor(
+        provider_id="aerolink",
+        transport_type="anthropic_messages",
+        credential_env="AEROLINK_API_KEY",
+        credential_url="https://aerolink.lat/dashboard/api-keys",
+        credential_attr="aerolink_api_key",
+        default_base_url=AEROLINK_DEFAULT_BASE,
+        base_url_attr="aerolink_base_url",
+        proxy_attr="aerolink_proxy",
+        capabilities=(
+            "chat",
+            "streaming",
+            "tools",
+            "thinking",
+            "native_anthropic",
+            "rate_limit",
         ),
     ),
 }

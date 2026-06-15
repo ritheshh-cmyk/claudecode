@@ -4,13 +4,14 @@ import asyncio
 from collections.abc import AsyncIterator
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
 from config.nim import NimSettings
 from config.settings import Settings
+from providers.aerolink.client import AerolinkProvider
 from providers.base import BaseProvider, ProviderConfig
 from providers.deepseek import DeepSeekProvider
 from providers.exceptions import ModelListResponseError, ServiceUnavailableError
@@ -35,6 +36,12 @@ def _settings(
     wafer_api_key: str = "",
     opencode_api_key: str = "",
     zai_api_key: str = "",
+    aerolink_api_key: str = "",
+    aerolink_api_key_opus: str = "",
+    aerolink_api_key_sonnet: str = "",
+    aerolink_api_key_haiku: str = "",
+    aerolink_base_url: str = "",
+    aerolink_proxy: str = "",
 ) -> Settings:
     return Settings.model_construct(
         model=model,
@@ -47,6 +54,12 @@ def _settings(
         wafer_api_key=wafer_api_key,
         opencode_api_key=opencode_api_key,
         zai_api_key=zai_api_key,
+        aerolink_api_key=aerolink_api_key,
+        aerolink_api_key_opus=aerolink_api_key_opus,
+        aerolink_api_key_sonnet=aerolink_api_key_sonnet,
+        aerolink_api_key_haiku=aerolink_api_key_haiku,
+        aerolink_base_url=aerolink_base_url,
+        aerolink_proxy=aerolink_proxy,
         log_api_error_tracebacks=False,
     )
 
@@ -121,6 +134,74 @@ async def test_wafer_lists_models_from_default_models_endpoint() -> None:
     mock_get.assert_awaited_once_with(
         "/models", headers={"Authorization": "Bearer wafer-key"}
     )
+
+
+@pytest.mark.asyncio
+async def test_aerolink_lists_models_from_default_models_endpoint() -> None:
+    provider = AerolinkProvider(
+        ProviderConfig(api_key="aerolink-key"), settings=MagicMock()
+    )
+    with patch.object(
+        provider._client,
+        "get",
+        new_callable=AsyncMock,
+        return_value=_response(200, {"data": [{"id": "claude-sonnet-4-6"}]}),
+    ) as mock_get:
+        assert await provider.list_model_ids() == frozenset({"claude-sonnet-4-6"})
+
+    mock_get.assert_awaited_once_with(
+        "/models",
+        headers={
+            "x-api-key": "aerolink-key",
+            "anthropic-version": "2023-06-01",
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_aerolink_sends_stream_request_with_correct_model_key() -> None:
+    settings = MagicMock()
+    settings.aerolink_api_key_opus = "opus-key"
+    settings.aerolink_api_key_sonnet = "sonnet-key"
+    settings.aerolink_api_key_haiku = "haiku-key"
+
+    provider = AerolinkProvider(
+        ProviderConfig(api_key="default-key"), settings=settings
+    )
+
+    with patch.object(
+        provider._client,
+        "send",
+        new_callable=AsyncMock,
+        return_value=AsyncMock(spec=httpx.Response),
+    ) as mock_send:
+        # 1. Test Opus model
+        body_opus = {"model": "claude-opus-4-7", "messages": []}
+        await provider._send_stream_request(body_opus)
+        args, _ = mock_send.call_args
+        request_obj = args[0]
+        assert request_obj.headers["x-api-key"] == "opus-key"
+
+        # 2. Test Sonnet model
+        body_sonnet = {"model": "claude-sonnet-4-6", "messages": []}
+        await provider._send_stream_request(body_sonnet)
+        args, _ = mock_send.call_args
+        request_obj = args[0]
+        assert request_obj.headers["x-api-key"] == "sonnet-key"
+
+        # 3. Test Haiku model
+        body_haiku = {"model": "claude-haiku-4-5-20251001", "messages": []}
+        await provider._send_stream_request(body_haiku)
+        args, _ = mock_send.call_args
+        request_obj = args[0]
+        assert request_obj.headers["x-api-key"] == "haiku-key"
+
+        # 4. Test fallback model
+        body_fallback = {"model": "other-model", "messages": []}
+        await provider._send_stream_request(body_fallback)
+        args, _ = mock_send.call_args
+        request_obj = args[0]
+        assert request_obj.headers["x-api-key"] == "default-key"
 
 
 @pytest.mark.asyncio

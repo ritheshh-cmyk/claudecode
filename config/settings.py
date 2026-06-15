@@ -114,6 +114,19 @@ class Settings(BaseSettings):
     # ==================== Cerebras Inference (OpenAI-compatible) ====================
     cerebras_api_key: str = Field(default="", validation_alias="CEREBRAS_API_KEY")
 
+    # ==================== Aerolink Config ====================
+    aerolink_api_key: str = Field(default="", validation_alias="AEROLINK_API_KEY")
+    aerolink_api_key_opus: str = Field(
+        default="", validation_alias="AEROLINK_API_KEY_OPUS"
+    )
+    aerolink_api_key_sonnet: str = Field(
+        default="", validation_alias="AEROLINK_API_KEY_SONNET"
+    )
+    aerolink_api_key_haiku: str = Field(
+        default="", validation_alias="AEROLINK_API_KEY_HAIKU"
+    )
+    aerolink_base_url: str = Field(default="", validation_alias="AEROLINK_BASE_URL")
+
     # ==================== Messaging Platform Selection ====================
     # Valid: "telegram" | "discord" | "none"
     messaging_platform: str = Field(
@@ -174,6 +187,7 @@ class Settings(BaseSettings):
     gemini_proxy: str = Field(default="", validation_alias="GEMINI_PROXY")
     groq_proxy: str = Field(default="", validation_alias="GROQ_PROXY")
     cerebras_proxy: str = Field(default="", validation_alias="CEREBRAS_PROXY")
+    aerolink_proxy: str = Field(default="", validation_alias="AEROLINK_PROXY")
 
     # ==================== Provider Rate Limiting ====================
     provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")

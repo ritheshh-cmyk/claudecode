@@ -57,6 +57,7 @@ PROVIDER_SMOKE_DEFAULT_MODELS: dict[str, str] = {
     "gemini": "gemini/models/gemini-3.1-flash-lite",
     "groq": "groq/llama-3.3-70b-versatile",
     "cerebras": "cerebras/llama3.1-8b",
+    "aerolink": "aerolink/claude-sonnet-4-6",
 }
 
 NVIDIA_NIM_CLI_DEFAULT_MODELS: tuple[str, ...] = (
@@ -257,6 +258,13 @@ class SmokeConfig:
             return bool(self.settings.groq_api_key.strip())
         if provider == "cerebras":
             return bool(self.settings.cerebras_api_key.strip())
+        if provider == "aerolink":
+            return bool(
+                self.settings.aerolink_api_key.strip()
+                or self.settings.aerolink_api_key_opus.strip()
+                or self.settings.aerolink_api_key_sonnet.strip()
+                or self.settings.aerolink_api_key_haiku.strip()
+            )
         return False
 
 

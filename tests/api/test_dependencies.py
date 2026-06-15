@@ -15,6 +15,7 @@ from api.dependencies import (
     resolve_provider,
 )
 from config.nim import NimSettings
+from providers.aerolink.client import AerolinkProvider
 from providers.cerebras import CerebrasProvider
 from providers.codestral import CodestralProvider
 from providers.deepseek import DeepSeekProvider
@@ -46,6 +47,11 @@ def _make_mock_settings(**overrides):
     mock.wafer_api_key = "test_wafer_key"
     mock.opencode_api_key = "test_opencode_key"
     mock.zai_api_key = "test_zai_key"
+    mock.aerolink_api_key = "test_aerolink_key"
+    mock.aerolink_api_key_opus = "test_opus_key"
+    mock.aerolink_api_key_sonnet = "test_sonnet_key"
+    mock.aerolink_api_key_haiku = "test_haiku_key"
+    mock.aerolink_base_url = "https://capi.aerolink.lat/v1"
     mock.lm_studio_base_url = "http://localhost:1234/v1"
     mock.llamacpp_base_url = "http://localhost:8080/v1"
     mock.ollama_base_url = "http://localhost:11434"
@@ -60,6 +66,7 @@ def _make_mock_settings(**overrides):
     mock.opencode_proxy = ""
     mock.opencode_go_proxy = ""
     mock.zai_proxy = ""
+    mock.aerolink_proxy = ""
     mock.fireworks_api_key = ""
     mock.fireworks_proxy = ""
     mock.gemini_api_key = ""
@@ -362,6 +369,19 @@ async def test_get_provider_wafer():
 
 
 @pytest.mark.asyncio
+async def test_get_provider_aerolink():
+    """Test that provider_type=aerolink returns AerolinkProvider."""
+    with patch("api.dependencies.get_settings") as mock_settings:
+        mock_settings.return_value = _make_mock_settings(provider_type="aerolink")
+
+        provider = get_provider()
+
+        assert isinstance(provider, AerolinkProvider)
+        assert provider._base_url == "https://capi.aerolink.lat/v1"
+        assert provider._api_key == "test_aerolink_key"
+
+
+@pytest.mark.asyncio
 async def test_get_provider_lmstudio_uses_lm_studio_base_url():
     """LM Studio provider uses lm_studio_base_url from settings."""
     with patch("api.dependencies.get_settings") as mock_settings:
@@ -546,6 +566,26 @@ async def test_get_provider_wafer_missing_api_key():
         assert exc_info.value.status_code == 503
         assert "WAFER_API_KEY" in exc_info.value.detail
         assert "wafer.ai" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_get_provider_aerolink_missing_api_key():
+    """Aerolink with empty API key raises HTTPException 503."""
+    with patch("api.dependencies.get_settings") as mock_settings:
+        mock_settings.return_value = _make_mock_settings(
+            provider_type="aerolink",
+            aerolink_api_key="",
+            aerolink_api_key_opus="",
+            aerolink_api_key_sonnet="",
+            aerolink_api_key_haiku="",
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            get_provider()
+
+        assert exc_info.value.status_code == 503
+        assert "AEROLINK_API_KEY" in exc_info.value.detail
+        assert "aerolink.lat" in exc_info.value.detail
 
 
 @pytest.mark.asyncio

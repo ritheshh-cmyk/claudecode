@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 from messaging.platforms.factory import create_messaging_platform
+from providers.aerolink.client import AerolinkProvider
 from providers.base import BaseProvider
 from providers.cerebras import CerebrasProvider
 from providers.codestral import CodestralProvider
@@ -94,6 +95,7 @@ def test_provider_and_platform_registries_include_advertised_builtins() -> None:
         "gemini": GeminiProvider,
         "groq": GroqProvider,
         "cerebras": CerebrasProvider,
+        "aerolink": AerolinkProvider,
     }
     for provider_class in provider_classes.values():
         assert issubclass(provider_class, BaseProvider)
