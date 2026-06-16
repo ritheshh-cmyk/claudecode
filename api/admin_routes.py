@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import ipaddress
+import os
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from config.paths import config_dir_path, server_log_path
 from config.settings import Settings
 from config.settings import get_settings as get_cached_settings
 from providers.registry import ProviderRegistry
@@ -177,21 +181,140 @@ async def test_provider(provider_id: str, request: Request):
     if not isinstance(registry, ProviderRegistry):
         registry = ProviderRegistry()
         request.app.state.provider_registry = registry
+    start_time = time.perf_counter()
     try:
         provider = registry.get(provider_id, settings)
         infos = await provider.list_model_infos()
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
     except Exception as exc:
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
         return {
             "provider_id": provider_id,
             "ok": False,
+            "latency_ms": latency_ms,
             "error_type": type(exc).__name__,
+            "error_message": str(exc),
         }
     registry.cache_model_infos(provider_id, infos)
     return {
         "provider_id": provider_id,
         "ok": True,
+        "latency_ms": latency_ms,
         "models": sorted(info.model_id for info in infos),
     }
+
+
+@router.get("/admin/api/providers/{provider_id}/models")
+async def get_provider_models(provider_id: str, request: Request):
+    require_loopback_admin(request)
+    registry = getattr(request.app.state, "provider_registry", None)
+    if not isinstance(registry, ProviderRegistry):
+        return {"models": []}
+    cached = registry.cached_model_ids().get(provider_id, [])
+    return {"models": sorted(cached)}
+
+
+@router.get("/admin/api/config/export")
+async def export_config(request: Request):
+    require_loopback_admin(request)
+    config = load_config_response()
+    values = {field["key"]: field["value"] for field in config["fields"]}
+    return JSONResponse(
+        content=values,
+        headers={"Content-Disposition": "attachment; filename=fcc-config.json"},
+    )
+
+
+@router.post("/admin/api/config/import")
+async def import_config(payload: AdminConfigPayload, request: Request):
+    require_loopback_admin(request)
+    filtered = _filtered_values(payload.values)
+    validation_res = validate_updates(filtered)
+    if not validation_res.get("valid", True):
+        return {"applied": False, "errors": validation_res.get("errors", [])}
+    result = write_managed_env(filtered)
+    if not result["applied"]:
+        return result
+    get_cached_settings.cache_clear()
+    restart = _restart_metadata(result["pending_fields"], request)
+    result["restart"] = restart
+    return result
+
+
+@router.get("/admin/api/logs/stream")
+async def stream_logs(request: Request):
+    require_loopback_admin(request)
+
+    async def log_generator():
+        log_path = Path(os.getenv("LOG_FILE", server_log_path()))
+        if not log_path.is_file():
+            yield "data: [No log file found]\n\n"
+            return
+        try:
+            with open(log_path, encoding="utf-8", errors="ignore") as f:
+                # Seek to near the end
+                f.seek(0, 2)
+                file_size = f.tell()
+                offset = max(0, file_size - 10240)
+                f.seek(offset)
+                lines = f.readlines()
+                if offset > 0 and lines:
+                    lines.pop(0)
+                for line in lines:
+                    yield f"data: {line.strip()}\n\n"
+                while True:
+                    if await request.is_disconnected():
+                        break
+                    line = f.readline()
+                    if not line:
+                        await asyncio.sleep(0.5)
+                        continue
+                    yield f"data: {line.strip()}\n\n"
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            yield f"data: Error reading logs: {exc}\n\n"
+
+    return StreamingResponse(log_generator(), media_type="text/event-stream")
+
+
+@router.get("/admin/api/profiles")
+async def list_profiles(request: Request):
+    require_loopback_admin(request)
+    config_dir = config_dir_path()
+    profiles_dir = config_dir / "profiles"
+    profiles = ["default"]
+    if profiles_dir.is_dir():
+        profiles.extend(f.stem for f in profiles_dir.glob("*.env"))
+    return {"profiles": profiles, "active": os.environ.get("ACTIVE_PROFILE", "default")}
+
+
+@router.post("/admin/api/profiles/switch")
+async def switch_profile(
+    payload: dict[str, str], request: Request, background_tasks: BackgroundTasks
+):
+    require_loopback_admin(request)
+    profile_name = payload.get("profile", "default").strip()
+    config_dir = config_dir_path()
+    profile_file = config_dir / "active_profile.txt"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    if profile_name == "default":
+        if profile_file.is_file():
+            profile_file.unlink()
+        os.environ.pop("ACTIVE_PROFILE", None)
+    else:
+        profiles_dir = config_dir / "profiles"
+        profiles_dir.mkdir(parents=True, exist_ok=True)
+        profile_path = profiles_dir / f"{profile_name}.env"
+        if not profile_path.is_file():
+            profile_path.write_text("# FCC Profile Config\n", encoding="utf-8")
+        profile_file.write_text(profile_name, encoding="utf-8")
+        os.environ["ACTIVE_PROFILE"] = profile_name
+    get_cached_settings.cache_clear()
+    callback = getattr(request.app.state, "admin_restart_callback", None)
+    if callable(callback):
+        background_tasks.add_task(_invoke_admin_restart_callback, callback)
+    return {"success": True, "active": profile_name}
 
 
 @router.post("/admin/api/models/refresh")

@@ -1,5 +1,7 @@
 """Shared filesystem paths for Free Claude Code configuration."""
 
+import contextlib
+import os
 from pathlib import Path
 
 FCC_CONFIG_DIRNAME = ".fcc"
@@ -18,8 +20,16 @@ def config_dir_path() -> Path:
 
 
 def managed_env_path() -> Path:
-    """Return the default user-managed env file path."""
-
+    """Return the default user-managed env file path, respecting ACTIVE_PROFILE."""
+    active_profile = ""
+    profile_file = config_dir_path() / "active_profile.txt"
+    if profile_file.is_file():
+        with contextlib.suppress(Exception):
+            active_profile = profile_file.read_text(encoding="utf-8").strip()
+    if not active_profile:
+        active_profile = os.environ.get("ACTIVE_PROFILE", "").strip()
+    if active_profile and active_profile != "default" and active_profile != "undefined":
+        return config_dir_path() / "profiles" / f"{active_profile}.env"
     return config_dir_path() / FCC_ENV_FILENAME
 
 

@@ -4,6 +4,10 @@ const state = {
   localStatus: new Map(),
   modelOptions: [],
   activeView: "providers",
+  theme: "dark",
+  profiles: [],
+  activeProfile: "default",
+  logSource: null,
 };
 
 const MASKED_SECRET = "********";
@@ -28,6 +32,20 @@ const VIEW_GROUPS = [
     title: "Messaging",
     sections: ["messaging", "voice"],
     containerId: "messagingSections",
+  },
+  {
+    id: "logs",
+    label: "Live Logs",
+    title: "Server Logs",
+    sections: [],
+    containerId: "",
+  },
+  {
+    id: "comparison",
+    label: "Comparison & Explorer",
+    title: "Comparison & Explorer",
+    sections: [],
+    containerId: "",
   },
 ];
 
@@ -71,6 +89,9 @@ function providerName(providerId) {
     opencode: "OpenCode Zen",
     opencode_go: "OpenCode Go",
     zai: "Z.ai",
+    github_models: "GitHub Models",
+    openai: "OpenAI",
+    aerolink: "Aerolink",
   };
   if (names[providerId]) return names[providerId];
   return providerId
@@ -97,6 +118,22 @@ async function api(path, options = {}) {
   return response.json();
 }
 
+// Init theme from localStorage
+function initTheme() {
+  const saved = localStorage.getItem("fcc-admin-theme") || "dark";
+  setTheme(saved);
+}
+
+function setTheme(theme) {
+  state.theme = theme;
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("fcc-admin-theme", theme);
+  const btn = byId("themeToggle");
+  if (btn) {
+    btn.textContent = theme === "dark" ? "☀ Light Mode" : "🌙 Dark Mode";
+  }
+}
+
 async function load() {
   showMessage("Loading admin config");
   const config = await api("/admin/api/config");
@@ -106,10 +143,32 @@ async function load() {
   renderProviders(config.provider_status);
   renderSections(config.sections, config.fields);
   byId("configPath").textContent = config.paths.managed;
+  
+  await loadProfiles();
   await validate(false);
   await refreshLocalStatus();
   updateDirtyState();
   showMessage("");
+}
+
+async function loadProfiles() {
+  try {
+    const data = await api("/admin/api/profiles");
+    state.profiles = data.profiles;
+    state.activeProfile = data.active;
+    
+    const select = byId("profileSelect");
+    select.innerHTML = "";
+    data.profiles.forEach(profile => {
+      const opt = document.createElement("option");
+      opt.value = profile;
+      opt.textContent = profile === "default" ? "Default (.env)" : profile;
+      opt.selected = profile === data.active;
+      select.appendChild(opt);
+    });
+  } catch (err) {
+    console.error("Failed to load profiles", err);
+  }
 }
 
 function renderNav() {
@@ -118,10 +177,10 @@ function renderNav() {
   VIEW_GROUPS.forEach((view, index) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `nav-link${index === 0 ? " active" : ""}`;
+    button.className = `nav-link${state.activeView === view.id ? " active" : ""}`;
     button.dataset.view = view.id;
     button.textContent = view.label;
-    if (index === 0) {
+    if (state.activeView === view.id) {
       button.setAttribute("aria-current", "page");
     }
     button.addEventListener("click", () => {
@@ -129,17 +188,20 @@ function renderNav() {
     });
     nav.appendChild(button);
   });
-  setActiveView(state.activeView, { scroll: false });
 }
 
 function setActiveView(viewId, { scroll = false } = {}) {
-  const activeView =
-    VIEW_GROUPS.find((view) => view.id === viewId) || VIEW_GROUPS[0];
-  state.activeView = activeView.id;
-  byId("pageTitle").textContent = activeView.title;
+  // If leaving logs view, close SSE
+  if (state.activeView === "logs" && viewId !== "logs") {
+    closeLogsStream();
+  }
+
+  state.activeView = viewId;
+  const activeViewObj = VIEW_GROUPS.find((view) => view.id === viewId) || VIEW_GROUPS[0];
+  byId("pageTitle").textContent = activeViewObj.title;
 
   document.querySelectorAll(".nav-link").forEach((link) => {
-    const selected = link.dataset.view === activeView.id;
+    const selected = link.dataset.view === activeViewObj.id;
     link.classList.toggle("active", selected);
     if (selected) {
       link.setAttribute("aria-current", "page");
@@ -149,10 +211,16 @@ function setActiveView(viewId, { scroll = false } = {}) {
   });
 
   document.querySelectorAll(".admin-view").forEach((view) => {
-    const selected = view.dataset.view === activeView.id;
+    const selected = view.dataset.view === activeViewObj.id;
     view.classList.toggle("active", selected);
     view.hidden = !selected;
   });
+
+  if (viewId === "logs") {
+    openLogsStream();
+  } else if (viewId === "comparison") {
+    renderComparisonTable();
+  }
 
   if (scroll) {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -183,13 +251,24 @@ function renderProviders(providerStatus) {
         ? provider.base_url || "No local URL configured"
         : provider.credential_env;
 
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "test-button";
-    button.textContent = provider.kind === "local" ? "Test" : "Refresh models";
-    button.addEventListener("click", () => testProvider(provider.provider_id, button));
+    const actions = document.createElement("div");
+    actions.className = "card-actions";
 
-    card.append(title, meta, button);
+    const testBtn = document.createElement("button");
+    testBtn.type = "button";
+    testBtn.className = "test-button";
+    testBtn.textContent = provider.kind === "local" ? "Test" : "Refresh models";
+    testBtn.addEventListener("click", () => testProvider(provider.provider_id, testBtn));
+    actions.appendChild(testBtn);
+
+    const exploreBtn = document.createElement("button");
+    exploreBtn.type = "button";
+    exploreBtn.className = "ghost-button";
+    exploreBtn.textContent = "Explore";
+    exploreBtn.addEventListener("click", () => exploreProviderModels(provider.provider_id));
+    actions.appendChild(exploreBtn);
+
+    card.append(title, meta, actions);
     grid.appendChild(card);
   });
 }
@@ -207,7 +286,9 @@ function updateProviderCard(providerId, status, label, metaText) {
 
 function renderSections(sections, fields) {
   VIEW_GROUPS.forEach((view) => {
-    byId(view.containerId).innerHTML = "";
+    if (view.containerId) {
+      byId(view.containerId).innerHTML = "";
+    }
   });
 
   const sectionById = new Map(sections.map((section) => [section.id, section]));
@@ -219,6 +300,7 @@ function renderSections(sections, fields) {
   });
 
   VIEW_GROUPS.forEach((view) => {
+    if (!view.containerId) return;
     const container = byId(view.containerId);
     view.sections.forEach((sectionId) => {
       const section = sectionById.get(sectionId);
@@ -291,13 +373,93 @@ function renderField(field) {
   if (field.description) {
     const description = document.createElement("div");
     description.className = "field-description";
-    description.textContent = field.description;
+    description.innerHTML = field.description; // allow formatted descriptions
     wrapper.appendChild(description);
   }
   return wrapper;
 }
 
 function inputForField(field) {
+  if (field.key === "FALLBACK_CHAIN") {
+    // Return a custom widget containing input and a reorder builder
+    const container = document.createElement("div");
+    container.className = "fallback-chain-widget";
+    
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = field.value || "";
+    input.style.marginBottom = "8px";
+    
+    const builder = document.createElement("div");
+    builder.style.display = "flex";
+    builder.style.flexWrap = "wrap";
+    builder.style.gap = "6px";
+    
+    const updatePills = () => {
+      builder.innerHTML = "";
+      const currentOrder = input.value.split(",").map(p => p.trim()).filter(Boolean);
+      
+      currentOrder.forEach((provider, index) => {
+        const pill = document.createElement("span");
+        pill.className = "status-pill neutral";
+        pill.style.display = "inline-flex";
+        pill.style.alignItems = "center";
+        pill.style.gap = "6px";
+        pill.textContent = providerName(provider);
+        
+        if (index > 0) {
+          const up = document.createElement("span");
+          up.textContent = "▲";
+          up.style.cursor = "pointer";
+          up.addEventListener("click", () => {
+            const arr = [...currentOrder];
+            [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+            input.value = arr.join(",");
+            updatePills();
+            updateDirtyState();
+          });
+          pill.appendChild(up);
+        }
+        
+        if (index < currentOrder.length - 1) {
+          const down = document.createElement("span");
+          down.textContent = "▼";
+          down.style.cursor = "pointer";
+          down.addEventListener("click", () => {
+            const arr = [...currentOrder];
+            [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+            input.value = arr.join(",");
+            updatePills();
+            updateDirtyState();
+          });
+          pill.appendChild(down);
+        }
+        
+        builder.appendChild(pill);
+      });
+    };
+    
+    setTimeout(updatePills, 100);
+    input.addEventListener("input", updatePills);
+    
+    // We proxy events from the input to the wrapper container
+    container.appendChild(input);
+    container.appendChild(builder);
+    
+    // override element properties so readFieldValue and events treat the widget container like the input
+    Object.defineProperty(container, "value", {
+      get: () => input.value,
+      set: (val) => { input.value = val; updatePills(); },
+      configurable: true
+    });
+    container.matches = (sel) => {
+      if (sel === "input, select, textarea") return true;
+      return HTMLElement.prototype.matches.call(container, sel);
+    };
+    
+    return container;
+  }
+
   if (field.type === "boolean") {
     const input = document.createElement("input");
     input.type = "checkbox";
@@ -380,6 +542,7 @@ function updateDirtyState() {
   byId("dirtyState").textContent =
     count === 0 ? "No changes" : `${count} unsaved change${count === 1 ? "" : "s"}`;
   byId("applyButton").disabled = count === 0;
+  byId("showDiffButton").disabled = count === 0;
 }
 
 async function validate(showResult = true) {
@@ -454,7 +617,7 @@ async function testProvider(providerId, button) {
         providerId,
         "reachable",
         `${result.models.length} models`,
-        result.models.slice(0, 3).join(", ") || "No models returned",
+        `Ping: ${result.latency_ms}ms | Models: ${result.models.slice(0, 3).join(", ")}`,
       );
       state.modelOptions = Array.from(
         new Set([
@@ -464,11 +627,12 @@ async function testProvider(providerId, button) {
       ).sort();
       syncModelDatalist();
     } else {
-      updateProviderCard(providerId, "offline", result.error_type, result.error_type);
+      updateProviderCard(providerId, "offline", result.error_type, `Ping error: ${result.error_message || result.error_type}`);
     }
   } finally {
     button.disabled = false;
     button.textContent = original;
+    renderComparisonTable();
   }
 }
 
@@ -485,13 +649,289 @@ function syncModelDatalist() {
 
 function showMessage(message, kind = "") {
   const area = byId("messageArea");
-  area.textContent = message;
-  area.className = `message-area ${kind}`.trim();
+  if (area) {
+    area.textContent = message;
+    area.className = `message-area ${kind}`.trim();
+  }
 }
 
+// Live log SSE Stream
+function openLogsStream() {
+  closeLogsStream();
+  const terminal = byId("logTerminal");
+  terminal.textContent = "Opening SSE stream to fcc-server logs...\n";
+  
+  state.logSource = new EventSource("/admin/api/logs/stream");
+  state.logSource.onmessage = (event) => {
+    let text = event.data;
+    try {
+      // Try to pretty print if log is JSON
+      const parsed = JSON.parse(event.data);
+      text = `[${parsed.time}] ${parsed.level}: ${parsed.message} (${parsed.module}.${parsed.function}:${parsed.line})`;
+    } catch (_) {}
+    
+    terminal.textContent += text + "\n";
+    
+    // Scroll to bottom
+    terminal.scrollTop = terminal.scrollHeight;
+    
+    // Cap at 1000 lines
+    const lines = terminal.textContent.split("\n");
+    if (lines.length > 1000) {
+      terminal.textContent = lines.slice(lines.length - 1000).join("\n");
+    }
+  };
+  state.logSource.onerror = () => {
+    terminal.textContent += "[SSE stream disconnected]\n";
+  };
+}
+
+function closeLogsStream() {
+  if (state.logSource) {
+    state.logSource.close();
+    state.logSource = null;
+  }
+}
+
+// Comparison Benchmark Table
+function renderComparisonTable() {
+  const body = byId("comparisonBody");
+  if (!body) return;
+  body.innerHTML = "";
+  
+  if (!state.config || !state.config.provider_status) return;
+  
+  state.config.provider_status.forEach(p => {
+    const row = document.createElement("tr");
+    
+    const nameTd = document.createElement("td");
+    nameTd.innerHTML = `<strong>${providerName(p.provider_id)}</strong>`;
+    
+    const statusTd = document.createElement("td");
+    const pill = document.createElement("span");
+    pill.className = `status-pill ${statusClass(p.status)}`;
+    pill.textContent = p.label;
+    statusTd.appendChild(pill);
+    
+    const card = document.querySelector(`[data-provider="${p.provider_id}"]`);
+    const cardMeta = card ? card.querySelector(".provider-meta").textContent : "";
+    const pingMatch = cardMeta.match(/Ping:\s*(\d+)ms/);
+    const latencyVal = pingMatch ? `${pingMatch[1]}ms` : "-";
+    const latencyTd = document.createElement("td");
+    latencyTd.textContent = latencyVal;
+    
+    const countTd = document.createElement("td");
+    const countMatch = cardMeta.match(/(\d+)\s*models/);
+    countTd.textContent = countMatch ? countMatch[1] : "-";
+    
+    const actionTd = document.createElement("td");
+    const testBtn = document.createElement("button");
+    testBtn.type = "button";
+    testBtn.className = "ghost-button mini-button";
+    testBtn.textContent = "Ping";
+    testBtn.addEventListener("click", () => testProvider(p.provider_id, testBtn));
+    actionTd.appendChild(testBtn);
+    
+    row.append(nameTd, statusTd, latencyTd, countTd, actionTd);
+    body.appendChild(row);
+  });
+}
+
+async function runBenchmark() {
+  const btn = byId("refreshComparisonButton");
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Benchmarking...";
+  
+  try {
+    if (!state.config || !state.config.provider_status) return;
+    for (const p of state.config.provider_status) {
+      await testProvider(p.provider_id, btn);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+    renderComparisonTable();
+  }
+}
+
+// Model Explorer
+async function exploreProviderModels(providerId) {
+  const section = byId("modelExplorerSection");
+  const list = byId("explorerModelsList");
+  const title = byId("explorerTitle");
+  
+  section.hidden = false;
+  title.textContent = `Supported Models for ${providerName(providerId)}`;
+  list.innerHTML = "<p>Loading models...</p>";
+  
+  try {
+    const data = await api(`/admin/api/providers/${providerId}/models`);
+    list.innerHTML = "";
+    if (data.models && data.models.length > 0) {
+      data.models.forEach(model => {
+        const item = document.createElement("div");
+        item.className = "model-item";
+        item.textContent = model;
+        list.appendChild(item);
+      });
+    } else {
+      list.innerHTML = `<p style="grid-column: 1/-1;">No models found in cache. Click <strong>Test</strong> or <strong>Ping</strong> above to query this provider.</p>`;
+    }
+  } catch (err) {
+    list.innerHTML = `<p style="grid-column: 1/-1; color: var(--error);">Error loading models: ${err.message}</p>`;
+  }
+}
+
+// Diff Generation
+function showDiff() {
+  const container = byId("diffContainer");
+  container.innerHTML = "";
+  const changes = changedValues();
+  
+  Object.keys(changes).forEach(key => {
+    const row = document.createElement("div");
+    const spec = state.fields.get(key);
+    const original = spec ? spec.value : "";
+    const current = changes[key];
+    
+    row.className = "diff-row";
+    if (!original && current) {
+      row.className += " diff-added";
+      row.innerHTML = `<strong>${key}</strong> (Added):<br><span style="color: var(--ok);">+ ${current}</span>`;
+    } else if (original && !current) {
+      row.className += " diff-removed";
+      row.innerHTML = `<strong>${key}</strong> (Removed):<br><span style="color: var(--error);">- ${original}</span>`;
+    } else {
+      row.className += " diff-changed";
+      row.innerHTML = `<strong>${key}</strong> (Modified):<br><span style="color: var(--error);">- ${original}</span><br><span style="color: var(--ok);">+ ${current}</span>`;
+    }
+    container.appendChild(row);
+  });
+  
+  byId("diffModal").hidden = false;
+}
+
+// Config Import / Export
+function exportConfig() {
+  window.location.href = "/admin/api/config/export";
+}
+
+function triggerImport() {
+  byId("importFileInput").click();
+}
+
+async function handleImportFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      let count = 0;
+      
+      // Update form inputs with imported values
+      document.querySelectorAll("[data-key]").forEach(input => {
+        const key = input.dataset.key;
+        if (Object.prototype.hasOwnProperty.call(imported, key)) {
+          const val = imported[key];
+          if (input.type === "checkbox") {
+            input.checked = String(val).toLowerCase() === "true";
+          } else {
+            input.value = val || "";
+          }
+          // trigger input event
+          input.dispatchEvent(new Event("input"));
+          count++;
+        }
+      });
+      
+      showMessage(`Imported ${count} values from config file. Save to apply.`, "ok");
+    } catch (err) {
+      showMessage(`Failed to parse config file: ${err.message}`, "error");
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Profile management
+async function switchProfile() {
+  const select = byId("profileSelect");
+  const profile = select.value;
+  showMessage(`Switching profile to ${profile}...`, "ok");
+  try {
+    const res = await api("/admin/api/profiles/switch", {
+      method: "POST",
+      body: JSON.stringify({ profile }),
+    });
+    if (res.success) {
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    }
+  } catch (err) {
+    showMessage(`Error switching profile: ${err.message}`, "error");
+  }
+}
+
+async function createProfile() {
+  const name = prompt("Enter new profile name (alphanumeric only):");
+  if (!name) return;
+  
+  const cleanName = name.replace(/[^a-zA-Z0-9_-]/g, "").trim();
+  if (!cleanName) {
+    alert("Invalid profile name.");
+    return;
+  }
+  
+  showMessage(`Creating profile ${cleanName}...`, "ok");
+  try {
+    const res = await api("/admin/api/profiles/switch", {
+      method: "POST",
+      body: JSON.stringify({ profile: cleanName }),
+    });
+    if (res.success) {
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    }
+  } catch (err) {
+    showMessage(`Error creating profile: ${err.message}`, "error");
+  }
+}
+
+// Register Handlers
 byId("validateButton").addEventListener("click", () => validate(true));
 byId("applyButton").addEventListener("click", apply);
+byId("showDiffButton").addEventListener("click", showDiff);
 
+byId("themeToggle").addEventListener("click", () => {
+  setTheme(state.theme === "dark" ? "light" : "dark");
+});
+
+byId("exportButton").addEventListener("click", exportConfig);
+byId("importButton").addEventListener("click", triggerImport);
+byId("importFileInput").addEventListener("change", handleImportFile);
+
+byId("profileSelect").addEventListener("change", switchProfile);
+byId("newProfileButton").addEventListener("click", createProfile);
+
+byId("clearLogsButton").addEventListener("click", () => {
+  byId("logTerminal").textContent = "";
+});
+
+byId("refreshComparisonButton").addEventListener("click", runBenchmark);
+
+byId("closeDiffModal").addEventListener("click", () => { byId("diffModal").hidden = true; });
+byId("modalCloseBtn").addEventListener("click", () => { byId("diffModal").hidden = true; });
+byId("modalApplyButton").addEventListener("click", () => {
+  byId("diffModal").hidden = true;
+  apply();
+});
+
+// Start load
+initTheme();
 load().catch((error) => {
   showMessage(error.message, "error");
 });
