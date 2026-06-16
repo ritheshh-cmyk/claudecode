@@ -1,0 +1,21 @@
+# Python virtualenv and cache
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local configurations
+.env
+.fcc/
+logs/
+
+# IDE files
+.idea/
+.vscode/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/

@@ -1,0 +1,73 @@
+# Branch protection: require every status check this workflow reports, for example:
+#   Ban type ignore suppressions
+#   ruff-format, ruff-check, ty, pytest
+# GitHub may prefix with the workflow name (e.g. "CI / ruff-format"); use the names the branch protection UI offers after a run.
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  no-type-ignore-suppressions:
+    name: Ban type ignore suppressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          fetch-depth: 1
+
+      - name: "Fail on type: ignore (no suppressions allowed)"
+        run: |
+          if grep -rE '# type: ignore|# ty: ignore' --include='*.py' . --exclude-dir=.venv --exclude-dir=.git; then
+            echo "::error::type: ignore / ty: ignore comments are not allowed. Fix the underlying type errors instead."
+            exit 1
+          fi
+          exit 0
+
+  quality:
+    name: ${{ matrix.id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: ruff-format
+            run: uv run ruff format --check
+          - id: ruff-check
+            run: uv run ruff check
+          - id: ty
+            run: uv run ty check
+          - id: pytest
+            run: uv run pytest -v --tb=short
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          fetch-depth: 1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39
+        with:
+          version: "0.11.15"
+          enable-cache: true
+          cache-python: true
+
+      - name: Run
+        run: ${{ matrix.run }}

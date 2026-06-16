@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Free Claude Code Admin</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/admin/assets/admin.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">FC</div>
+          <div>
+            <h1>Free Claude Code</h1>
+            <p>Server Control</p>
+          </div>
+        </div>
+        <nav id="sectionNav" class="section-nav" aria-label="Admin views"></nav>
+
+        <div class="sidebar-footer">
+          <div class="profile-container">
+            <label for="profileSelect">Active Profile</label>
+            <div class="profile-row">
+              <select id="profileSelect" class="profile-select"></select>
+              <button id="newProfileButton" class="ghost-button mini-button" type="button" title="New Profile">+</button>
+            </div>
+          </div>
+
+          <div class="sidebar-actions">
+            <button id="themeToggle" class="theme-toggle-btn" type="button">☀ Light Mode</button>
+            <div class="import-export-row">
+              <button id="exportButton" class="ghost-button" type="button" title="Export Config">Export</button>
+              <button id="importButton" class="ghost-button" type="button" title="Import Config">Import</button>
+              <input type="file" id="importFileInput" accept=".json" style="display: none;" />
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h2 id="pageTitle">Providers</h2>
+          </div>
+        </header>
+
+        <div id="adminViews" class="admin-views">
+          <section id="view-providers" class="admin-view active" data-view="providers">
+            <section class="provider-strip" aria-label="Provider status">
+              <div class="strip-header">
+                <h3>Providers</h3>
+              </div>
+              <div id="providerGrid" class="provider-grid"></div>
+            </section>
+            <div
+              id="providersSections"
+              class="form-sections"
+              aria-label="Provider configuration"
+            ></div>
+          </section>
+
+          <section id="view-model_config" class="admin-view" data-view="model_config" hidden>
+            <div
+              id="modelConfigSections"
+              class="form-sections"
+              aria-label="Model configuration"
+            ></div>
+          </section>
+
+          <section id="view-messaging" class="admin-view" data-view="messaging" hidden>
+            <div
+              id="messagingSections"
+              class="form-sections"
+              aria-label="Messaging configuration"
+            ></div>
+          </section>
+
+          <section id="view-logs" class="admin-view" data-view="logs" hidden>
+            <div class="settings-section">
+              <div class="section-heading">
+                <div>
+                  <h3>Live Server Logs</h3>
+                  <p>Real-time log stream from the running fcc-server process.</p>
+                </div>
+                <button id="clearLogsButton" class="secondary-button" type="button">Clear Screen</button>
+              </div>
+              <pre id="logTerminal" class="log-terminal">Waiting for logs...</pre>
+            </div>
+          </section>
+
+          <section id="view-comparison" class="admin-view" data-view="comparison" hidden>
+            <div class="settings-section">
+              <div class="section-heading">
+                <div>
+                  <h3>Provider Comparison & Model Explorer</h3>
+                  <p>Compare performance metrics and explore registered models.</p>
+                </div>
+                <button id="refreshComparisonButton" class="primary-button" type="button">Run Ping Benchmark</button>
+              </div>
+              <div class="table-container">
+                <table class="comparison-table">
+                  <thead>
+                    <tr>
+                      <th>Provider</th>
+                      <th>Status</th>
+                      <th>Latency</th>
+                      <th>Models Count</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="comparisonBody">
+                    <!-- Dynamically populated -->
+                  </tbody>
+                </table>
+              </div>
+              <div id="modelExplorerSection" class="model-explorer-section" hidden>
+                <h4 id="explorerTitle">Models List</h4>
+                <div id="explorerModelsList" class="explorer-models-list"></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer class="action-bar">
+        <div class="action-meta">
+          <strong id="dirtyState">No changes</strong>
+          <span id="configPath"></span>
+        </div>
+        <div id="messageArea" class="message-area"></div>
+        <div class="action-buttons">
+          <button id="showDiffButton" class="secondary-button" type="button" disabled>Show Diff</button>
+          <button id="validateButton" class="secondary-button" type="button">Validate</button>
+          <button id="applyButton" class="primary-button" type="button" disabled>Apply</button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Diff Modal -->
+    <div id="diffModal" class="modal" hidden>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Unsaved Config Changes (Diff)</h3>
+          <button id="closeDiffModal" class="close-button" type="button">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="diffContainer" class="diff-container"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="modalCloseBtn" class="secondary-button" type="button">Close</button>
+          <button id="modalApplyButton" class="primary-button" type="button">Apply Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/admin/assets/admin.js"></script>
+  </body>
+</html>

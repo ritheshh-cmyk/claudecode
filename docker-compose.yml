@@ -1,0 +1,16 @@
+services:
+  fcc-server:
+    build: .
+    container_name: fcc-server
+    ports:
+      - "8082:8082"
+    env_file:
+      - .env
+    volumes:
+      - fcc-config:/root/.fcc
+      - fcc-logs:/root/.fcc/logs
+    restart: unless-stopped
+
+volumes:
+  fcc-config:
+  fcc-logs:
