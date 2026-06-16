@@ -36,3 +36,25 @@ class GitHubModelsProvider(OpenAIChatTransport):
             request,
             thinking_enabled=self._is_thinking_enabled(request, thinking_enabled),
         )
+
+    async def list_model_ids(self) -> frozenset[str]:
+        """Return model ids from GitHub Models by parsing the raw JSON array."""
+        import httpx
+        headers = {"Authorization": f"Bearer {self._api_key}"}
+        proxy = self._config.proxy if self._config.proxy else None
+        timeout = httpx.Timeout(
+            self._config.http_read_timeout,
+            connect=self._config.http_connect_timeout,
+            read=self._config.http_read_timeout,
+            write=self._config.http_write_timeout,
+        )
+        async with httpx.AsyncClient(proxy=proxy, timeout=timeout) as client:
+            response = await client.get(f"{self._base_url}/models", headers=headers)
+            response.raise_for_status()
+            data = response.json()
+        model_ids = set()
+        if isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict) and "name" in item:
+                    model_ids.add(item["name"])
+        return frozenset(model_ids)
