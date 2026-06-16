@@ -37,6 +37,8 @@ GEMINI_DEFAULT_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
 GROQ_DEFAULT_BASE = "https://api.groq.com/openai/v1"
 CEREBRAS_DEFAULT_BASE = "https://api.cerebras.ai/v1"
 AEROLINK_DEFAULT_BASE = "https://capi.aerolink.lat/v1"
+GITHUB_MODELS_DEFAULT_BASE = "https://models.inference.ai.azure.com"
+OPENAI_DEFAULT_BASE = "https://api.openai.com/v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -264,6 +266,26 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
             "native_anthropic",
             "rate_limit",
         ),
+    ),
+    "github_models": ProviderDescriptor(
+        provider_id="github_models",
+        transport_type="openai_chat",
+        credential_env="GITHUB_TOKEN",
+        credential_url="https://github.com/settings/tokens",
+        credential_attr="github_token",
+        default_base_url=GITHUB_MODELS_DEFAULT_BASE,
+        proxy_attr="github_models_proxy",
+        capabilities=("chat", "streaming", "tools", "rate_limit"),
+    ),
+    "openai": ProviderDescriptor(
+        provider_id="openai",
+        transport_type="openai_chat",
+        credential_env="OPENAI_API_KEY",
+        credential_url="https://platform.openai.com/api-keys",
+        credential_attr="openai_api_key",
+        default_base_url=OPENAI_DEFAULT_BASE,
+        proxy_attr="openai_proxy",
+        capabilities=("chat", "streaming", "tools", "rate_limit"),
     ),
 }
 

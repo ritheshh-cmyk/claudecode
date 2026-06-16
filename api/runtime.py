@@ -88,6 +88,7 @@ class AppRuntime:
     app: FastAPI
     settings: Settings
     _provider_registry: ProviderRegistry | None = field(default=None, init=False)
+    _heartbeat_checker: Any = field(default=None, init=False)
     messaging_platform: MessagingPlatform | None = None
     message_handler: ClaudeMessageHandler | None = None
     cli_manager: CLISessionManager | None = None
@@ -105,6 +106,46 @@ class AppRuntime:
         admin_url = local_admin_url(self.settings)
         self._provider_registry = ProviderRegistry()
         self.app.state.provider_registry = self._provider_registry
+
+        # Initialize and store reliability components in app.state
+        from core.reliability import (
+            CircuitBreaker,
+            DeadLetterQueue,
+            KeyPool,
+            RequestDeduplicator,
+            RequestQueue,
+        )
+        from core.reliability.heartbeat import HeartbeatChecker, get_active_provider_ids
+        from core.reliability.helpers import warmup_connection_pools
+        from providers.registry import PROVIDER_DESCRIPTORS, _credential_for
+
+        self.app.state.circuit_breaker = CircuitBreaker(
+            failure_threshold=5,
+            recovery_timeout=30.0,
+            success_threshold=2,
+            tripping_exceptions=(Exception,),
+        )
+
+        keys_by_provider = {}
+        for p_id in get_active_provider_ids(self.settings):
+            descriptor = PROVIDER_DESCRIPTORS.get(p_id)
+            if descriptor:
+                key = _credential_for(descriptor, self.settings)
+                if key and key.strip():
+                    keys_by_provider[p_id] = [key.strip()]
+
+        self.app.state.key_pool = KeyPool(keys_by_provider=keys_by_provider)
+        self.app.state.request_queue = RequestQueue()
+        self.app.state.dead_letter_queue = DeadLetterQueue()
+        self.app.state.deduplicator = RequestDeduplicator()
+
+        # Instantiate and start heartbeat checker
+        self._heartbeat_checker = HeartbeatChecker(
+            self.settings, self._provider_registry
+        )
+        self._heartbeat_checker.start()
+        self.app.state.heartbeat_checker = self._heartbeat_checker
+
         try:
             warn_if_process_auth_token(self.settings)
             await self._validate_configured_models_best_effort()
@@ -114,8 +155,14 @@ class AppRuntime:
             logging.getLogger("uvicorn.error").info(
                 "Admin UI: %s (local-only)", admin_url
             )
+            # Warm up connection pools in background task
+            asyncio.create_task(
+                warmup_connection_pools(self._provider_registry, self.settings)
+            )
         except Exception as exc:
             log_startup_failure(self.settings, exc)
+            if self._heartbeat_checker:
+                await self._heartbeat_checker.stop()
             await best_effort(
                 "provider_registry.cleanup",
                 self._provider_registry.cleanup(),
@@ -166,9 +213,13 @@ class AppRuntime:
                 log_verbose_errors=verbose,
             )
         if self._provider_registry is not None:
+            from core.reliability.helpers import graceful_shutdown
+
             await best_effort(
-                "provider_registry.cleanup",
-                self._provider_registry.cleanup(),
+                "reliability.graceful_shutdown",
+                graceful_shutdown(
+                    self._provider_registry, getattr(self, "_heartbeat_checker", None)
+                ),
                 log_verbose_errors=verbose,
             )
         await self._shutdown_limiter()

@@ -142,6 +142,18 @@ def _create_aerolink(config: ProviderConfig, settings: Settings) -> BaseProvider
     return AerolinkProvider(config, settings=settings)
 
 
+def _create_github_models(config: ProviderConfig, _settings: Settings) -> BaseProvider:
+    from providers.github_models.client import GitHubModelsProvider
+
+    return GitHubModelsProvider(config)
+
+
+def _create_openai(config: ProviderConfig, _settings: Settings) -> BaseProvider:
+    from providers.openai.client import OpenAIProvider
+
+    return OpenAIProvider(config)
+
+
 PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "nvidia_nim": _create_nvidia_nim,
     "open_router": _create_open_router,
@@ -161,6 +173,8 @@ PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "llamacpp": _create_llamacpp,
     "ollama": _create_ollama,
     "aerolink": _create_aerolink,
+    "github_models": _create_github_models,
+    "openai": _create_openai,
 }
 
 if set(PROVIDER_DESCRIPTORS) != set(SUPPORTED_PROVIDER_IDS) or set(
@@ -211,20 +225,22 @@ def build_provider_config(
     return ProviderConfig(
         api_key=credential,
         base_url=base_url or descriptor.default_base_url,
-        rate_limit=settings.provider_rate_limit,
-        rate_window=settings.provider_rate_window,
-        max_concurrency=settings.provider_max_concurrency,
-        http_read_timeout=settings.http_read_timeout,
-        http_write_timeout=settings.http_write_timeout,
-        http_connect_timeout=settings.http_connect_timeout,
-        enable_thinking=settings.enable_model_thinking,
+        rate_limit=getattr(settings, "provider_rate_limit", 40),
+        rate_window=getattr(settings, "provider_rate_window", 60),
+        max_concurrency=getattr(settings, "provider_max_concurrency", 5),
+        http_read_timeout=getattr(settings, "http_read_timeout", 120.0),
+        http_write_timeout=getattr(settings, "http_write_timeout", 10.0),
+        http_connect_timeout=getattr(settings, "http_connect_timeout", 10.0),
+        enable_thinking=getattr(settings, "enable_model_thinking", True),
         proxy=proxy,
-        log_raw_sse_events=settings.log_raw_sse_events,
-        log_api_error_tracebacks=settings.log_api_error_tracebacks,
+        log_raw_sse_events=getattr(settings, "log_raw_sse_events", False),
+        log_api_error_tracebacks=getattr(settings, "log_api_error_tracebacks", False),
     )
 
 
-def create_provider(provider_id: str, settings: Settings) -> BaseProvider:
+def create_provider(
+    provider_id: str, settings: Settings, api_key: str | None = None
+) -> BaseProvider:
     descriptor = PROVIDER_DESCRIPTORS.get(provider_id)
     if descriptor is None:
         supported = "', '".join(PROVIDER_DESCRIPTORS)
@@ -233,6 +249,8 @@ def create_provider(provider_id: str, settings: Settings) -> BaseProvider:
         )
 
     config = build_provider_config(descriptor, settings)
+    if api_key is not None:
+        config.api_key = api_key
     factory = PROVIDER_FACTORIES.get(provider_id)
     if factory is None:
         raise AssertionError(f"Unhandled provider descriptor: {provider_id}")
@@ -318,10 +336,15 @@ class ProviderRegistry:
         """Return whether a provider for this id is already in the cache."""
         return provider_id in self._providers
 
-    def get(self, provider_id: str, settings: Settings) -> BaseProvider:
-        if provider_id not in self._providers:
-            self._providers[provider_id] = create_provider(provider_id, settings)
-        return self._providers[provider_id]
+    def get(
+        self, provider_id: str, settings: Settings, api_key: str | None = None
+    ) -> BaseProvider:
+        cache_key = f"{provider_id}::{api_key}" if api_key else provider_id
+        if cache_key not in self._providers:
+            self._providers[cache_key] = create_provider(
+                provider_id, settings, api_key=api_key
+            )
+        return self._providers[cache_key]
 
     def cache_model_ids(self, provider_id: str, model_ids: Iterable[str]) -> None:
         """Store a provider model-list result for later instant API responses."""

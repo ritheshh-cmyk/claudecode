@@ -127,6 +127,12 @@ class Settings(BaseSettings):
     )
     aerolink_base_url: str = Field(default="", validation_alias="AEROLINK_BASE_URL")
 
+    # ==================== GitHub Models Config ====================
+    github_token: str = Field(default="", validation_alias="GITHUB_TOKEN")
+
+    # ==================== OpenAI (ChatGPT) Config ====================
+    openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
+
     # ==================== Messaging Platform Selection ====================
     # Valid: "telegram" | "discord" | "none"
     messaging_platform: str = Field(
@@ -188,6 +194,20 @@ class Settings(BaseSettings):
     groq_proxy: str = Field(default="", validation_alias="GROQ_PROXY")
     cerebras_proxy: str = Field(default="", validation_alias="CEREBRAS_PROXY")
     aerolink_proxy: str = Field(default="", validation_alias="AEROLINK_PROXY")
+    github_models_proxy: str = Field(default="", validation_alias="GITHUB_MODELS_PROXY")
+    openai_proxy: str = Field(default="", validation_alias="OPENAI_PROXY")
+
+    # ==================== Fallback Provider ====================
+    # When the primary provider is rate-limited / auth-failed / overloaded,
+    # the proxy automatically retries the request on this model instead.
+    # Format: provider_id/model_name  e.g. github_models/claude-3-5-sonnet
+    fallback_model: str = Field(default="", validation_alias="FALLBACK_MODEL")
+
+    # ==================== Reliability Engine (Phase 1) ====================
+    provider_timeout: float = Field(default=30.0, validation_alias="PROVIDER_TIMEOUT")
+    fallback_chain: str = Field(default="", validation_alias="FALLBACK_CHAIN")
+    heartbeat_interval: int = Field(default=60, validation_alias="HEARTBEAT_INTERVAL")
+    blackout_windows: str = Field(default="", validation_alias="BLACKOUT_WINDOWS")
 
     # ==================== Provider Rate Limiting ====================
     provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")

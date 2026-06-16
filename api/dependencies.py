@@ -33,6 +33,7 @@ def resolve_provider(
     *,
     app: Starlette | None,
     settings: Settings,
+    api_key: str | None = None,
 ) -> BaseProvider:
     """Resolve a provider using the app-scoped registry when ``app`` is set.
 
@@ -51,16 +52,22 @@ def resolve_provider(
                 "Provider registry is not configured. Ensure AppRuntime startup ran "
                 "or assign app.state.provider_registry for test apps."
             )
-        return _resolve_with_registry(reg, provider_type, settings)
-    return _resolve_with_registry(ProviderRegistry(_providers), provider_type, settings)
+        return _resolve_with_registry(reg, provider_type, settings, api_key=api_key)
+    return _resolve_with_registry(
+        ProviderRegistry(_providers), provider_type, settings, api_key=api_key
+    )
 
 
 def _resolve_with_registry(
-    registry: ProviderRegistry, provider_type: str, settings: Settings
+    registry: ProviderRegistry,
+    provider_type: str,
+    settings: Settings,
+    api_key: str | None = None,
 ) -> BaseProvider:
-    should_log_init = not registry.is_cached(provider_type)
+    cache_key = f"{provider_type}::{api_key}" if api_key else provider_type
+    should_log_init = not registry.is_cached(cache_key)
     try:
-        provider = registry.get(provider_type, settings)
+        provider = registry.get(provider_type, settings, api_key=api_key)
     except AuthenticationError as e:
         # Provider :class:`~providers.exceptions.AuthenticationError` messages are
         # curated configuration hints (env var names, docs links), not upstream noise.
@@ -74,7 +81,11 @@ def _resolve_with_registry(
         )
         raise
     if should_log_init:
-        logger.info("Provider initialized: {}", provider_type)
+        logger.info(
+            "Provider initialized: {} (api_key present: {})",
+            provider_type,
+            api_key is not None,
+        )
     return provider
 
 

@@ -461,6 +461,50 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         advanced=True,
     ),
     ConfigFieldSpec(
+        "GITHUB_TOKEN",
+        "GitHub Personal Access Token",
+        "providers",
+        "secret",
+        settings_attr="github_token",
+        secret=True,
+        description=(
+            "GitHub PAT from [github.com/settings/tokens](https://github.com/settings/tokens). "
+            "Free for all GitHub users — gives access to Claude 3.5/3.7 Sonnet, GPT-4o, "
+            "o1, Llama, Mistral and more via [GitHub Models](https://docs.github.com/en/github-models)."
+        ),
+    ),
+    ConfigFieldSpec(
+        "GITHUB_MODELS_PROXY",
+        "GitHub Models Proxy",
+        "providers",
+        "secret",
+        settings_attr="github_models_proxy",
+        secret=True,
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "OPENAI_API_KEY",
+        "OpenAI API Key",
+        "providers",
+        "secret",
+        settings_attr="openai_api_key",
+        secret=True,
+        description=(
+            "OpenAI API key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys). "
+            "Enables gpt-4o, gpt-4o-mini, o1, o3-mini and all other OpenAI models "
+            "through the same proxy."
+        ),
+    ),
+    ConfigFieldSpec(
+        "OPENAI_PROXY",
+        "OpenAI Proxy",
+        "providers",
+        "secret",
+        settings_attr="openai_proxy",
+        secret=True,
+        advanced=True,
+    ),
+    ConfigFieldSpec(
         "MODEL",
         "Default Model",
         "models",
@@ -488,6 +532,17 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "models",
         settings_attr="model_haiku",
         description="Optional provider/model route for Haiku requests.",
+    ),
+    ConfigFieldSpec(
+        "FALLBACK_MODEL",
+        "Fallback Model",
+        "models",
+        settings_attr="fallback_model",
+        description=(
+            "When the primary provider is **rate-limited, auth-failed, or overloaded**, "
+            "the proxy automatically retries on this model — no error shown to the user. "
+            "Format: `provider_id/model_name`  e.g. `github_models/claude-3-5-sonnet`"
+        ),
     ),
     ConfigFieldSpec(
         "ENABLE_MODEL_THINKING",

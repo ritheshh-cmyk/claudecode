@@ -102,7 +102,7 @@ async def test_runtime_startup_logs_admin_url_without_printed_server_banner(tmp_
         await runtime.shutdown()
 
     printed.assert_not_called()
-    get_logger.assert_called_with("uvicorn.error")
+    get_logger.assert_any_call("uvicorn.error")
     uvicorn_logger.info.assert_called_once_with(
         "Admin UI: %s (local-only)",
         "http://127.0.0.1:9099/admin",

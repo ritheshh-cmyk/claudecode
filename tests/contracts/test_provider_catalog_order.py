@@ -23,6 +23,8 @@ _EXPECTED_PROVIDER_ORDER: tuple[str, ...] = (
     "llamacpp",
     "ollama",
     "aerolink",
+    "github_models",
+    "openai",
 )
 
 
