@@ -40,6 +40,7 @@ class GitHubModelsProvider(OpenAIChatTransport):
     async def list_model_ids(self) -> frozenset[str]:
         """Return model ids from GitHub Models by parsing the raw JSON array."""
         import httpx
+
         headers = {"Authorization": f"Bearer {self._api_key}"}
         proxy = self._config.proxy if self._config.proxy else None
         timeout = httpx.Timeout(

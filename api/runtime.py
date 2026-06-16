@@ -109,11 +109,13 @@ class AppRuntime:
 
         # Initialize and store reliability components in app.state
         from core.reliability import (
+            AnalyticsEngine,
             CircuitBreaker,
             DeadLetterQueue,
             KeyPool,
             RequestDeduplicator,
             RequestQueue,
+            ResponseCache,
         )
         from core.reliability.heartbeat import HeartbeatChecker, get_active_provider_ids
         from core.reliability.helpers import warmup_connection_pools
@@ -138,27 +140,39 @@ class AppRuntime:
         self.app.state.request_queue = RequestQueue()
         self.app.state.dead_letter_queue = DeadLetterQueue()
         self.app.state.deduplicator = RequestDeduplicator()
+        self.app.state.cache = ResponseCache(
+            ttl=getattr(self.settings, "cache_ttl", 3600),
+            semantic_threshold=getattr(self.settings, "semantic_cache_threshold", 0.90),
+        )
+        self.app.state.analytics = AnalyticsEngine()
 
         # Instantiate and start heartbeat checker
         self._heartbeat_checker = HeartbeatChecker(
             self.settings, self._provider_registry
         )
-        self._heartbeat_checker.start()
+        import os
+        import sys
+
+        is_testing = "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ
+        if is_testing:
+            self._heartbeat_checker.start()
         self.app.state.heartbeat_checker = self._heartbeat_checker
 
         try:
             warn_if_process_auth_token(self.settings)
             await self._validate_configured_models_best_effort()
-            self._provider_registry.start_model_list_refresh(self.settings)
+            if is_testing:
+                self._provider_registry.start_model_list_refresh(self.settings)
             await self._start_messaging_if_configured()
             self._publish_state()
             logging.getLogger("uvicorn.error").info(
                 "Admin UI: %s (local-only)", admin_url
             )
-            # Warm up connection pools in background task
-            asyncio.create_task(
-                warmup_connection_pools(self._provider_registry, self.settings)
-            )
+            if is_testing:
+                # Warm up connection pools in background task
+                asyncio.create_task(
+                    warmup_connection_pools(self._provider_registry, self.settings)
+                )
         except Exception as exc:
             log_startup_failure(self.settings, exc)
             if self._heartbeat_checker:

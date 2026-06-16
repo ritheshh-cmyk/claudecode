@@ -88,7 +88,6 @@ textarea {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
-  padding-bottom: 86px;
 }
 
 /* Sidebar */
@@ -211,6 +210,33 @@ textarea {
 .profile-row {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+.profile-add-btn {
+  min-height: 38px;
+  width: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.profile-add-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg);
+}
+
+.profile-add-btn:active {
+  transform: scale(0.95);
 }
 
 .profile-select {
@@ -268,6 +294,7 @@ textarea {
 .main {
   min-width: 0;
   padding: 48px 64px;
+  padding-bottom: 120px;
 }
 
 .topbar {
@@ -314,6 +341,12 @@ textarea {
   color: var(--error);
   background: rgba(255, 69, 58, 0.1);
   border-color: rgba(255, 69, 58, 0.25);
+}
+
+.status-pill.drag-over {
+  border-color: var(--accent);
+  background: var(--panel-strong);
+  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.2);
 }
 
 .admin-views,
@@ -845,3 +878,97 @@ textarea {
     flex: 1;
   }
 }
+
+/* ==================== Guide Page ==================== */
+
+.guide-section {
+  max-width: 780px;
+}
+
+.guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.guide-step {
+  display: flex;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: flex-start;
+}
+
+.guide-step:last-child {
+  border-bottom: none;
+}
+
+.guide-step-num {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.18);
+}
+
+.guide-step-body {
+  flex: 1;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.guide-step-body strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.guide-step-body p {
+  margin: 6px 0 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.guide-code {
+  display: block;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", monospace;
+  font-size: 12.5px;
+  color: var(--ok);
+  margin: 8px 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+}
+
+.guide-note {
+  margin-top: 8px !important;
+  padding: 8px 12px;
+  background: rgba(255, 159, 10, 0.08);
+  border-left: 3px solid var(--warn);
+  border-radius: 0 6px 6px 0;
+  color: var(--text) !important;
+  font-size: 12.5px !important;
+}
+
+.guide-note code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+

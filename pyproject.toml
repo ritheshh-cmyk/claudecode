@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "free-claude-code"
-version = "1.5.1"
-description = "Middleware between Claude Code CLI (Anthropic API) and NVIDIA NIM"
+version = "1.5.8"
+description = "Middleware gateway between Claude Code CLI and 20+ LLM providers (Aerolink, GitHub Models, OpenAI, Gemini, DeepSeek, NVIDIA NIM, etc.)"
 readme = "README.md"
 requires-python = ">=3.14.0"
 dependencies = [
@@ -23,6 +23,7 @@ dependencies = [
     "loguru>=0.7.0",
     "aiohttp>=3.14.0",
     "jsonschema>=4.25.0",
+    "cryptography>=42.0.0",
 ]
 
 [project.scripts]
@@ -74,6 +75,7 @@ dev = [
 [tool.ruff]
 target-version = "py314"
 line-length = 88
+exclude = ["claudecode-setup"]
 
 [tool.ruff.lint]
 select = [
@@ -122,6 +124,11 @@ markers = [
 
 [tool.ty.environment]
 python-version = "3.14"
+
+[tool.ty.src]
+exclude = [
+    "claudecode-setup/**",
+]
 
 [tool.ty.analysis]
 # Optional voice_local extra: torch, transformers, librosa for local whisper transcription

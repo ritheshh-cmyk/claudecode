@@ -12,7 +12,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$RepoGitUrl = "git+https://github.com/Alishahryar1/free-claude-code.git"
+$RepoGitUrl = "git+https://github.com/ritheshh-cmyk/claudecode.git"
 $PythonVersion = "3.14.0"
 $MinUvVersion = "0.11.0"
 $UvInstallUrl = "https://astral.sh/uv/install.ps1"
@@ -92,8 +92,17 @@ function Add-PathEntry {
 }
 
 function Add-UvToPath {
-    Add-PathEntry (Join-Path $HOME ".local\bin")
-    Add-PathEntry (Join-Path $HOME ".cargo\bin")
+    $binPath = Join-Path $HOME ".local\bin"
+    $cargoPath = Join-Path $HOME ".cargo" "bin"
+    Add-PathEntry $binPath
+    Add-PathEntry $cargoPath
+
+    # Add ~/.local/bin permanently to the user PATH if not already there
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    if ($userPath -notlike "*$binPath*") {
+        [Environment]::SetEnvironmentVariable("Path", $userPath + ";$binPath", "User")
+        Write-Host "Added $binPath permanently to your user PATH." -ForegroundColor Green
+    }
 }
 
 function Assert-CommandAvailable {
@@ -324,19 +333,29 @@ function Get-PackageSpec {
         throw "-TorchBackend requires -VoiceLocal or -VoiceAll."
     }
 
+    if (Test-Path "pyproject.toml") {
+        $installSource = "."
+    } else {
+        $installSource = $RepoGitUrl
+    }
+
     if ($includeNim -and $includeLocal) {
-        return "free-claude-code[voice,voice_local] @ $RepoGitUrl"
+        return "free-claude-code[voice,voice_local] @ $installSource"
     }
 
     if ($includeNim) {
-        return "free-claude-code[voice] @ $RepoGitUrl"
+        return "free-claude-code[voice] @ $installSource"
     }
 
     if ($includeLocal) {
-        return "free-claude-code[voice_local] @ $RepoGitUrl"
+        return "free-claude-code[voice_local] @ $installSource"
     }
 
-    return $RepoGitUrl
+    if ($installSource -eq ".") {
+        return "."
+    }
+
+    return $installSource
 }
 
 function Install-FreeClaudeCode {
@@ -362,7 +381,7 @@ if ($RemainingArgs.Count -gt 0) {
 }
 
 if ((-not [string]::IsNullOrWhiteSpace($TorchBackend)) -and (-not ($VoiceLocal -or $VoiceAll))) {
-    throw "-TorchBackend requires -VoiceLocal or -VoiceAll."
+    throw "-TorchBackend requires -VoiceLocal -VoiceAll."
 }
 
 Write-Step "Installing Claude Code if missing"
@@ -377,5 +396,32 @@ Invoke-InstallCommand -FilePath "uv" -Arguments @("python", "install", $PythonVe
 Write-Step "Installing or updating Free Claude Code"
 Install-FreeClaudeCode
 
+Write-Step "Configuring environment templates"
+$fccDir = Join-Path $HOME ".fcc"
+$profilesDir = Join-Path $fccDir "profiles"
+$logsDir = Join-Path $fccDir "logs"
+
+New-Item -ItemType Directory -Force -Path $profilesDir | Out-Null
+New-Item -ItemType Directory -Force -Path $logsDir | Out-Null
+
+$envPath = Join-Path $fccDir ".env"
+if (-not (Test-Path $envPath)) {
+    if (Test-Path ".env.example") {
+        Copy-Item -Path ".env.example" -Destination $envPath -Force
+        Write-Host "Created new config at $envPath from local template." -ForegroundColor Green
+    } else {
+        Write-Host "Downloading config template from GitHub..." -ForegroundColor Blue
+        try {
+            Invoke-RestMethod -Uri "https://raw.githubusercontent.com/ritheshh-cmyk/claudecode/main/.env.example" -OutFile $envPath
+            Write-Host "Created new config at $envPath." -ForegroundColor Green
+        } catch {
+            Write-Host "Warning: Could not download .env.example automatically." -ForegroundColor Yellow
+        }
+    }
+} else {
+    Write-Host "Config file already exists at $envPath (skipping)"
+}
+
 Write-Host ""
 Write-Host "Free Claude Code is installed. Start the proxy with: fcc-server"
+

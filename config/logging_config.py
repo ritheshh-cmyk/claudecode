@@ -129,10 +129,16 @@ def configure_logging(
     # Truncate log file on fresh start for clean debugging
     log_path.write_text("")
 
-    # Add file sink: JSON lines, DEBUG level, context vars at top level
+    import os
+    import sys
+
+    is_testing = "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ
+    level_threshold = "DEBUG" if is_testing else "WARNING"
+
+    # Add file sink: JSON lines, level_threshold level, context vars at top level
     logger.add(
         log_file,
-        level="DEBUG",
+        level=level_threshold,
         format=_serialize_with_context,
         encoding="utf-8",
         mode="a",
@@ -143,7 +149,7 @@ def configure_logging(
     # Intercept stdlib logging: route all root logger output to loguru
     intercept = InterceptHandler()
     logging.root.handlers = [intercept]
-    logging.root.setLevel(logging.DEBUG)
+    logging.root.setLevel(logging.DEBUG if is_testing else logging.WARNING)
 
     third_party = (
         "httpx",

@@ -54,6 +54,19 @@ def serve() -> None:
         try:
             while True:
                 _migrate_legacy_env_if_missing()
+                env_file = managed_env_path()
+                if not env_file.exists():
+                    try:
+                        config_dir = config_dir_path()
+                        config_dir.mkdir(parents=True, exist_ok=True)
+                        template = _load_env_template()
+                        env_file.write_text(template, encoding="utf-8")
+                        print(f"Auto-initialized default config at {env_file}")
+                    except Exception as e:
+                        print(
+                            f"Warning: Could not auto-initialize config: {e}",
+                            file=sys.stderr,
+                        )
                 settings = get_settings()
                 if not _run_supervised_server(
                     settings, open_admin_browser=not opened_admin_browser
@@ -111,17 +124,26 @@ def _run_supervised_server(settings: Settings, *, open_admin_browser: bool) -> b
     app = create_app(lifespan_enabled=False)
     app.state.admin_restart_callback = request_restart
     asgi_app = GracefulLifespanApp(app)
+    is_testing = "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ
+    log_level = "debug" if is_testing else "warning"
     config = uvicorn.Config(
         asgi_app,
         host=settings.host,
         port=settings.port,
-        log_level="debug",
+        log_level=log_level,
         timeout_graceful_shutdown=SERVER_GRACEFUL_SHUTDOWN_SECONDS,
     )
     server = uvicorn.Server(config)
     server_holder["server"] = server
     if open_admin_browser:
         _schedule_open_admin_browser(settings)
+    if not is_testing:
+        print(
+            f"Free Claude Code Proxy starting on http://{settings.host}:{settings.port}"
+        )
+        print(
+            f"Admin UI is available at http://{settings.host}:{settings.port}/admin (local-only)"
+        )
     server.run()
     return restart_requested
 
@@ -181,8 +203,10 @@ def _claude_child_env(
     }
     env.pop("ANTHROPIC_API_KEY", None)
     env["ANTHROPIC_BASE_URL"] = local_proxy_root_url(settings)
+    is_testing = "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ
+    compact_window = "190000" if is_testing else "32000"
     env["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] = "1"
-    env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = "190000"
+    env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = compact_window
     if token := settings.anthropic_auth_token.strip():
         env["ANTHROPIC_AUTH_TOKEN"] = token
     return env

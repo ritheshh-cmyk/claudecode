@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Free Claude Code Admin</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="/admin/assets/admin.css" />
+    <link rel="stylesheet" href="/admin/assets/admin.css?v=1.5.3" />
   </head>
   <body>
     <div class="app-shell">
@@ -24,12 +24,12 @@
             <label for="profileSelect">Active Profile</label>
             <div class="profile-row">
               <select id="profileSelect" class="profile-select"></select>
-              <button id="newProfileButton" class="ghost-button mini-button" type="button" title="New Profile">+</button>
+              <button id="newProfileButton" class="profile-add-btn" type="button" title="New Profile">+</button>
             </div>
           </div>
 
           <div class="sidebar-actions">
-            <button id="themeToggle" class="theme-toggle-btn" type="button">☀ Light Mode</button>
+            <button id="themeToggle" class="theme-toggle-btn" type="button">â˜€ Light Mode</button>
             <div class="import-export-row">
               <button id="exportButton" class="ghost-button" type="button" title="Export Config">Export</button>
               <button id="importButton" class="ghost-button" type="button" title="Import Config">Import</button>
@@ -121,6 +121,266 @@
               </div>
             </div>
           </section>
+
+
+          <section id="view-analytics" class="admin-view" data-view="analytics" hidden>
+            <div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+              <div class="provider-card" style="min-height: 100px;">
+                <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.08em;">Total Requests</div>
+                <div id="metricTotalRequests" style="font-size: 32px; font-weight: 700; margin-top: 8px;">0</div>
+              </div>
+              <div class="provider-card" style="min-height: 100px;">
+                <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.08em;">Total Cost (USD)</div>
+                <div id="metricTotalCost" style="font-size: 32px; font-weight: 700; margin-top: 8px;">$0.00</div>
+              </div>
+              <div class="provider-card" style="min-height: 100px;">
+                <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.08em;">Avg Latency</div>
+                <div id="metricAvgLatency" style="font-size: 32px; font-weight: 700; margin-top: 8px;">0ms</div>
+              </div>
+              <div class="provider-card" style="min-height: 100px;">
+                <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.08em;">Error Rate</div>
+                <div id="metricErrorRate" style="font-size: 32px; font-weight: 700; margin-top: 8px;">0.0%</div>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="section-heading">
+                <div>
+                  <h3>Provider Distribution & Cost Saving</h3>
+                  <p>Visualize request splits and savings from fallback cascades.</p>
+                </div>
+                <button id="exportAnalyticsButton" class="secondary-button" type="button">Export to CSV</button>
+              </div>
+              <div id="analyticsDistribution" style="display: grid; gap: 12px;">
+                <!-- Dynamically populated progress bars -->
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="section-heading">
+                <div>
+                  <h3>Recent Request History Log</h3>
+                  <p>Scrollable list of the last 500 requests handled by the proxy server.</p>
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="comparison-table" style="font-size: 12px;">
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>Request ID</th>
+                      <th>Provider / Model</th>
+                      <th>Tokens (I/O)</th>
+                      <th>Latency (FB/Total)</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="analyticsHistoryBody">
+                    <!-- Dynamically populated -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+                    <section id="view-guide" class="admin-view" data-view="guide" hidden>
+
+            <div class="settings-section guide-section">
+              <div class="section-heading">
+                <div>
+                  <h3>Getting Started</h3>
+                  <p>Start the proxy server and open the admin dashboard.</p>
+                </div>
+              </div>
+              <div class="guide-steps">
+                <div class="guide-step">
+                  <div class="guide-step-num">1</div>
+                  <div class="guide-step-body">
+                    <strong>Start the server</strong>
+                    <p>Open a terminal in your project directory and run:</p>
+                    <pre class="guide-code">fcc-server</pre>
+                    <p>Or, using the dev virtualenv:</p>
+                    <pre class="guide-code">uv run fcc-server</pre>
+                  </div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">2</div>
+                  <div class="guide-step-body">
+                    <strong>Open this dashboard</strong>
+                    <p>Navigate to:</p>
+                    <pre class="guide-code"><span id="guideAdminUrl">http://127.0.0.1:8082/admin</span></pre>
+                    <p class="guide-note">The admin dashboard is <strong>local-only</strong> &mdash; it only responds to requests from <code>127.0.0.1</code> / <code>localhost</code>.</p>
+                  </div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">3</div>
+                  <div class="guide-step-body">
+                    <strong>Point your AI tool at the proxy</strong>
+                    <p>Set the API base URL of Claude Code, OpenCode, or any OpenAI-compatible tool to:</p>
+                    <pre class="guide-code"><span id="guideProxyUrl">http://127.0.0.1:8082</span></pre>
+                    <p>Use <strong>any non-empty string</strong> as your API key &mdash; the proxy supplies real credentials from its rotation pool.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section guide-section">
+              <div class="section-heading">
+                <div>
+                  <h3>Providers View</h3>
+                  <p>Configure and health-check upstream AI providers.</p>
+                </div>
+              </div>
+              <div class="guide-steps">
+                <div class="guide-step">
+                  <div class="guide-step-num">1</div>
+                  <div class="guide-step-body"><strong>Click <em>Providers</em></strong> in the sidebar. Each card shows a live status pill: <span class="status-pill ok" style="font-size:11px;">Healthy</span>, <span class="status-pill warn" style="font-size:11px;">Warn</span>, or <span class="status-pill error" style="font-size:11px;">Offline</span>.</div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">2</div>
+                  <div class="guide-step-body"><strong>Click <em>Ping</em></strong> on any provider card to test live latency and refresh its status.</div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">3</div>
+                  <div class="guide-step-body"><strong>Edit credentials</strong> (API keys, base URLs) directly in the text inputs, then click <strong>Apply</strong> in the bottom bar.</div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">4</div>
+                  <div class="guide-step-body"><strong>Click <em>Explore Models</em></strong> to see all models available from a provider (queries the provider's <code>/models</code> endpoint).</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section guide-section">
+              <div class="section-heading">
+                <div>
+                  <h3>Model Config View</h3>
+                  <p>Control routing, thinking mode, and web tools.</p>
+                </div>
+              </div>
+              <div class="guide-steps">
+                <div class="guide-step">
+                  <div class="guide-step-num">1</div>
+                  <div class="guide-step-body">Set the <strong>Primary Model</strong> and <strong>Fallback Model</strong> from the dropdowns (or type a custom model ID).</div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">2</div>
+                  <div class="guide-step-body">Enable <strong>Extended Thinking</strong> and set the maximum thinking token budget.</div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">3</div>
+                  <div class="guide-step-body">Toggle <strong>Web Tools</strong> (search, page fetch) on or off for all proxied requests.</div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">4</div>
+                  <div class="guide-step-body">Click <strong>Show Diff</strong> to preview your changes, then <strong>Apply</strong> to commit them to the config file.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section guide-section">
+              <div class="section-heading">
+                <div>
+                  <h3>Analytics &amp; History View</h3>
+                  <p>Monitor every request routed through the proxy &mdash; latency, cost, errors, and provider splits.</p>
+                </div>
+              </div>
+              <div class="guide-steps">
+                <div class="guide-step">
+                  <div class="guide-step-num">1</div>
+                  <div class="guide-step-body">
+                    <strong>Summary cards</strong> (top row) update on each visit:
+                    <table class="comparison-table" style="margin-top:10px;font-size:12px;">
+                      <thead><tr><th>Card</th><th>Description</th></tr></thead>
+                      <tbody>
+                        <tr><td>Total Requests</td><td>All-time count of requests handled by the proxy</td></tr>
+                        <tr><td>Total Cost (USD)</td><td>Estimated LLM token cost in USD</td></tr>
+                        <tr><td>Avg Latency</td><td>Mean end-to-end latency across all requests</td></tr>
+                        <tr><td>Error Rate</td><td>% of requests that returned a 4xx / 5xx status</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">2</div>
+                  <div class="guide-step-body"><strong>Provider Distribution</strong> &mdash; sorted progress bars show each provider's traffic share, plus a stat strip with <strong>p50 / p95 / p99</strong>, <strong>TTFB</strong>, <strong>Fallbacks</strong>, and <strong>Streaming %</strong>.</div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">3</div>
+                  <div class="guide-step-body"><strong>Request History Log</strong> &mdash; newest requests first. Columns: Timestamp &middot; Request ID &middot; Provider / Model &middot; Tokens (I/O) &middot; Latency (TTFB / Total) &middot; Status code. An amber <strong>Fallback</strong> badge marks cascade requests.</div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">4</div>
+                  <div class="guide-step-body"><strong>Click <em>Export to CSV</em></strong> to download a full <code>fcc_analytics.csv</code> with all request fields.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section guide-section">
+              <div class="section-heading">
+                <div>
+                  <h3>Live Logs View</h3>
+                  <p>Real-time server log stream in the browser.</p>
+                </div>
+              </div>
+              <div class="guide-steps">
+                <div class="guide-step">
+                  <div class="guide-step-num">1</div>
+                  <div class="guide-step-body">Click <strong>Live Logs</strong> &mdash; the terminal auto-connects via SSE to <code>/admin/api/logs/stream</code>.</div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">2</div>
+                  <div class="guide-step-body">Logs appear in real-time as requests are processed. Click <strong>Clear</strong> to wipe the scrollback buffer. Navigating away automatically closes the stream.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section guide-section">
+              <div class="section-heading">
+                <div>
+                  <h3>Comparison &amp; Explorer View</h3>
+                  <p>Benchmark all providers side-by-side.</p>
+                </div>
+              </div>
+              <div class="guide-steps">
+                <div class="guide-step">
+                  <div class="guide-step-num">1</div>
+                  <div class="guide-step-body">Click <strong>Comparison &amp; Explorer</strong> &mdash; the table shows last-known status, latency, and model count for every configured provider.</div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">2</div>
+                  <div class="guide-step-body">Click <strong>Run Benchmark</strong> to ping all providers in sequence. Use the row-level <strong>Ping</strong> button to test a single provider.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section guide-section">
+              <div class="section-heading">
+                <div>
+                  <h3>Profiles &amp; Config</h3>
+                  <p>Multi-environment profiles and config import/export.</p>
+                </div>
+              </div>
+              <div class="guide-steps">
+                <div class="guide-step">
+                  <div class="guide-step-num">1</div>
+                  <div class="guide-step-body">Use the <strong>Profile Selector</strong> (top-right sidebar) to switch between <code>.env</code> profiles (e.g. <code>default</code>, <code>dev</code>, <code>prod</code>). Click <strong>+</strong> to create a new profile.</div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">2</div>
+                  <div class="guide-step-body"><strong>Export</strong> (bottom bar) &mdash; downloads your current configuration as a JSON file for backup or sharing.</div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">3</div>
+                  <div class="guide-step-body"><strong>Import</strong> (bottom bar) &mdash; loads values from a previously exported JSON file. Click <strong>Apply</strong> after importing to persist the changes.</div>
+                </div>
+                <div class="guide-step">
+                  <div class="guide-step-num">4</div>
+                  <div class="guide-step-body">Click <strong>Light Mode / Dark Mode</strong> (top-right) to toggle the theme. Your preference is saved in <code>localStorage</code>.</div>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
 
@@ -155,6 +415,6 @@
       </div>
     </div>
 
-    <script src="/admin/assets/admin.js"></script>
+    <script src="/admin/assets/admin.js?v=1.5.5"></script>
   </body>
 </html>

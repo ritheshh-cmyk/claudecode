@@ -47,6 +47,20 @@ const VIEW_GROUPS = [
     sections: [],
     containerId: "",
   },
+  {
+    id: "analytics",
+    label: "Analytics & History",
+    title: "Analytics Dashboard",
+    sections: [],
+    containerId: "",
+  },
+  {
+    id: "guide",
+    label: "📖 Guide",
+    title: "Admin Console — User Guide",
+    sections: [],
+    containerId: "",
+  },
 ];
 
 const byId = (id) => document.getElementById(id);
@@ -148,6 +162,18 @@ async function load() {
   await validate(false);
   await refreshLocalStatus();
   updateDirtyState();
+  
+  // Update guide URLs dynamically
+  const origin = window.location.origin;
+  const guideAdminUrl = byId("guideAdminUrl");
+  const guideProxyUrl = byId("guideProxyUrl");
+  if (guideAdminUrl) {
+    guideAdminUrl.textContent = `${origin}/admin`;
+  }
+  if (guideProxyUrl) {
+    guideProxyUrl.textContent = origin;
+  }
+  
   showMessage("");
 }
 
@@ -220,6 +246,8 @@ function setActiveView(viewId, { scroll = false } = {}) {
     openLogsStream();
   } else if (viewId === "comparison") {
     renderComparisonTable();
+  } else if (viewId === "analytics") {
+    loadAnalytics();
   }
 
   if (scroll) {
@@ -406,6 +434,50 @@ function inputForField(field) {
         pill.style.alignItems = "center";
         pill.style.gap = "6px";
         pill.textContent = providerName(provider);
+        
+        // HTML5 Drag and Drop (Feature 80)
+        pill.draggable = true;
+        pill.style.cursor = "grab";
+        
+        pill.addEventListener("dragstart", (e) => {
+          e.dataTransfer.setData("text/plain", index);
+          pill.style.opacity = "0.5";
+        });
+        
+        pill.addEventListener("dragend", () => {
+          pill.style.opacity = "1";
+          document.querySelectorAll(".fallback-chain-widget .status-pill").forEach(p => {
+            p.classList.remove("drag-over");
+          });
+        });
+        
+        pill.addEventListener("dragover", (e) => {
+          e.preventDefault();
+        });
+        
+        pill.addEventListener("dragenter", (e) => {
+          e.preventDefault();
+          pill.classList.add("drag-over");
+        });
+        
+        pill.addEventListener("dragleave", () => {
+          pill.classList.remove("drag-over");
+        });
+        
+        pill.addEventListener("drop", (e) => {
+          e.preventDefault();
+          pill.classList.remove("drag-over");
+          const fromIndex = parseInt(e.dataTransfer.getData("text/plain"), 10);
+          const toIndex = index;
+          if (fromIndex !== toIndex && !isNaN(fromIndex)) {
+            const arr = [...currentOrder];
+            const [moved] = arr.splice(fromIndex, 1);
+            arr.splice(toIndex, 0, moved);
+            input.value = arr.join(",");
+            updatePills();
+            updateDirtyState();
+          }
+        });
         
         if (index > 0) {
           const up = document.createElement("span");
@@ -757,6 +829,8 @@ async function runBenchmark() {
 
 // Model Explorer
 async function exploreProviderModels(providerId) {
+  setActiveView("comparison");
+  
   const section = byId("modelExplorerSection");
   const list = byId("explorerModelsList");
   const title = byId("explorerTitle");
@@ -930,8 +1004,140 @@ byId("modalApplyButton").addEventListener("click", () => {
   apply();
 });
 
+
+// ==================== Analytics & Observability ====================
+
+async function loadAnalytics() {
+  showMessage("Loading analytics data...");
+  try {
+    // --- Summary Metrics ---
+    const summary = await api("/admin/api/analytics/summary");
+
+    byId("metricTotalRequests").textContent = summary.total_requests ?? 0;
+    byId("metricTotalCost").textContent =
+      summary.total_cost_usd !== undefined
+        ? `$${summary.total_cost_usd.toFixed(4)}`
+        : "$0.0000";
+    byId("metricAvgLatency").textContent =
+      summary.avg_latency_ms !== undefined
+        ? `${summary.avg_latency_ms}ms`
+        : "0ms";
+    byId("metricErrorRate").textContent =
+      summary.error_rate !== undefined ? `${summary.error_rate}%` : "0.0%";
+
+    // --- Provider Distribution Progress Bars ---
+    const distContainer = byId("analyticsDistribution");
+    distContainer.innerHTML = "";
+    const splits = summary.provider_split || {};
+    const splitEntries = Object.entries(splits);
+
+    if (splitEntries.length === 0) {
+      distContainer.innerHTML =
+        '<p style="color:var(--muted);text-align:center;padding:16px;">No distribution data available yet. Make some requests first.</p>';
+    } else {
+      splitEntries.sort((a, b) => b[1] - a[1]);
+      splitEntries.forEach(([prov, pct]) => {
+        const row = document.createElement("div");
+        row.innerHTML = `
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+            <strong>${providerName(prov)}</strong>
+            <span style="color:var(--muted);">${pct.toFixed(1)}%</span>
+          </div>
+          <div style="background:rgba(255,255,255,0.07);height:8px;border-radius:4px;overflow:hidden;">
+            <div style="background:var(--ok,#22c55e);width:${Math.min(pct, 100)}%;height:100%;border-radius:4px;transition:width 0.4s ease;"></div>
+          </div>`;
+        distContainer.appendChild(row);
+      });
+
+      // Extra stats row (p95, fallbacks, streaming)
+      const extras = document.createElement("div");
+      extras.style.cssText =
+        "display:flex;gap:24px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--muted);";
+      extras.innerHTML = `
+        <span>p50: <strong style="color:var(--fg);">${summary.p50_latency_ms ?? 0}ms</strong></span>
+        <span>p95: <strong style="color:var(--fg);">${summary.p95_latency_ms ?? 0}ms</strong></span>
+        <span>p99: <strong style="color:var(--fg);">${summary.p99_latency_ms ?? 0}ms</strong></span>
+        <span>Avg TTFB: <strong style="color:var(--fg);">${summary.avg_first_byte_latency_ms ?? 0}ms</strong></span>
+        <span>Fallbacks: <strong style="color:var(--warn,#f59e0b);">${summary.fallback_count ?? 0}</strong></span>
+        <span>Streaming: <strong style="color:var(--fg);">${summary.streaming_percentage ?? 0}%</strong></span>
+        <span>Total tokens: <strong style="color:var(--fg);">${(summary.total_tokens ?? 0).toLocaleString()}</strong></span>
+      `;
+      distContainer.appendChild(extras);
+    }
+
+    // --- Request History Table ---
+    const history = await api("/admin/api/analytics/history");
+    const tbody = byId("analyticsHistoryBody");
+    tbody.innerHTML = "";
+
+    if (!Array.isArray(history) || history.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">No request history logged yet. Route some requests through the proxy.</td></tr>';
+      showMessage("");
+      return;
+    }
+
+    // Render newest first (API returns chronological, reverse for display)
+    [...history].reverse().forEach((item) => {
+      const tr = document.createElement("tr");
+
+      // Timestamp
+      const timeTd = document.createElement("td");
+      try {
+        timeTd.textContent = item.timestamp
+          ? new Date(item.timestamp).toLocaleTimeString()
+          : "—";
+      } catch (_) {
+        timeTd.textContent = item.timestamp || "—";
+      }
+
+      // Request ID (truncated)
+      const idTd = document.createElement("td");
+      idTd.innerHTML = `<span style="font-family:monospace;font-size:11px;" title="${item.request_id || ""}">${item.request_id ? item.request_id.slice(0, 8) + "…" : "—"}</span>`;
+
+      // Provider / Model
+      const provTd = document.createElement("td");
+      const fbBadge = item.fallback_triggered
+        ? ` <span style="font-size:10px;background:rgba(245,158,11,0.2);color:#f59e0b;padding:1px 5px;border-radius:3px;margin-left:4px;">Fallback</span>`
+        : "";
+      provTd.innerHTML = `<strong>${providerName(item.provider_id || "")}</strong><br><span style="font-size:11px;color:var(--muted);">${item.model_id || "—"}</span>${fbBadge}`;
+
+      // Tokens I/O
+      const tokTd = document.createElement("td");
+      const streamBadge = item.is_streaming ? " ⚡" : "";
+      tokTd.innerHTML = `${(item.total_tokens ?? 0).toLocaleString()}${streamBadge}<br><span style="font-size:11px;color:var(--muted);">${item.input_tokens ?? 0} in / ${item.output_tokens ?? 0} out</span>`;
+
+      // Latency FB/Total
+      const latTd = document.createElement("td");
+      latTd.innerHTML = `${item.first_byte_latency_ms ?? 0}ms<br><span style="font-size:11px;color:var(--muted);">total ${item.latency_ms ?? 0}ms</span>`;
+
+      // Status
+      const stTd = document.createElement("td");
+      const code = item.status_code ?? 200;
+      const stPill = document.createElement("span");
+      stPill.className = `status-pill ${code < 400 ? "ok" : "error"}`;
+      stPill.textContent = code;
+      stTd.appendChild(stPill);
+
+      tr.append(timeTd, idTd, provTd, tokTd, latTd, stTd);
+      tbody.appendChild(tr);
+    });
+
+    showMessage("");
+  } catch (err) {
+    showMessage(`Failed to load analytics: ${err.message}`, "error");
+  }
+}
+
+// ==================== Analytics Listeners ====================
+
+byId("exportAnalyticsButton").addEventListener("click", () => {
+  window.location.href = "/admin/api/analytics/export";
+});
+
 // Start load
 initTheme();
 load().catch((error) => {
   showMessage(error.message, "error");
 });
+

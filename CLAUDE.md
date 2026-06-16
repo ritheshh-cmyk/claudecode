@@ -1,95 +1,84 @@
-# AGENTIC DIRECTIVE
+# Antigravity Global Rules & Protocols
 
-> This file is identical to AGENTS.md. Keep them in sync.
+This file defines the core behavioral rules and default protocols for the Antigravity agent. These rules must be checked and adhered to at the start of every session and during task execution.
 
-## CODING ENVIRONMENT
+## 1. Plan Mode is the Default
+- **3+ Step Tasks:** Any task that requires 3 or more steps must start in plan mode.
+- **Context First:** Before creating any plan or spec, always query the context first using **`memory_recall`** or **`memory_smart_search`** to retrieve relevant history, and verify codebase structure using the manifest.
+- **Protocol:** Every time you enter the planning phase, always use the **`gsd-plan-phase`** (or corresponding **`gsd-spec-phase`** / **`gsd-progress`** planning) skill to structure, specify, and review the plan before execution.
+- **Spec Compliance:** Map all technical specifications, data structures, and API contracts using **`openspec`** before changing any code.
+- **Dynamic Re-planning:** If execution goes sideways, stops, or encounters unexpected errors, halt immediately and re-plan.
+- **Upfront Specs:** Write detailed, technical specifications before changing any source code.
 
-- Install astral uv using "curl -LsSf https://astral.sh/uv/install.sh | sh" if not already installed and if already installed then update it to the latest version
-- Install Python 3.14.0 stable using `uv python install 3.14.0` if not already installed (requires uv >=0.9; see `[tool.uv] required-version` in `pyproject.toml`)
-- Always use `uv run` to run files instead of the global `python` command.
-- Current uv ruff formatter is set to py314 which has supports multiple exception types without paranthesis (except TypeError, ValueError:)
-- Read `.env.example` for environment variables.
-- All CI checks must pass; failing checks block merge.
-- Add tests for new changes (including edge cases), then run `uv run pytest`.
-- Run checks in this order: `uv run ruff format`, `uv run ruff check`, `uv run ty check`, `uv run pytest`.
-- Do not add `# type: ignore` or `# ty: ignore`; fix the underlying type issue.
-- All 5 checks are enforced in `tests.yml` on push/merge (parallel jobs: suppression grep, ruff-format, ruff-check, ty, pytest).
-- Branch protection: set **required status checks** to **all** of those statuses (e.g. **Ban type ignore suppressions**, **ruff-format**, **ruff-check**, **ty**, **pytest**—use the exact labels GitHub shows, which may be prefixed with **CI /**). Remove **ci** from required checks if it was previously added for the old gate job.
+## 2. Subagents Protect the Main Context
+- **Delegation:** Offload extensive research, parallel analysis, and code exploration tasks to subagents.
+- **Protocol:** For complex research, query audits, or open-ended codebase exploration, use the **`deep-research`** skill pack (or **`search-specialist`** / **`tavily-web`** / **`search_web`** tools) to gather information thoroughly before designing a solution.
+- **Focus:** Equip each subagent with exactly one focused task to conserve the main context.
+- **Compute Scalability:** Allocate more compute resources/subagents to solve complex, concurrent sub-problems.
 
-## IDENTITY & CONTEXT
+## 3. The Self-Improvement Loop
+- **Persistent Lessons:** Every correction, mistake, or session refinement must be documented as a rule in `tasks/lessons.md`.
+- **Session Setup:** Review `tasks/lessons.md` at the start of every session to inherit all historical learnings.
+- **Efficiency:** Compounded micro-rules keep context clean; 100 lines of precise lessons beat 800 lines of repetitive context.
 
-- You are an expert Software Architect and Systems Engineer.
-- Goal: Zero-defect, root-cause-oriented engineering for bugs; test-driven engineering for new features. Think carefully; no need to rush.
-- Code: Write the simplest code possible. Keep the codebase minimal and modular.
+## 4. Verification Before Done
+- **No Exceptions:** Never mark a task or phase as complete without executing verification tests and proving it works.
+- **Verification Impact:** Double-check and verify code changes 2-3x to multiply the quality of the final output.
 
-## ARCHITECTURE PRINCIPLES
+## 5. Autonomous Bug Fixing
+- **Hands-Free Resolution:** Given a bug or test failure, solve it autonomously without asking for user hand-holding.
+- **Evidence-Based:** Point directly to logs, stack traces, compiler errors, or failing tests, formulate a hypothesis, and resolve.
 
-- **Shared utilities**: Put shared Anthropic protocol logic in neutral `core/anthropic/` modules. Do not have one provider import from another provider's utils.
-- **DRY**: Extract shared base classes to eliminate duplication. Prefer composition over copy-paste.
-- **Encapsulation**: Use accessor methods for internal state (e.g. `set_current_task()`), not direct `_attribute` assignment from outside.
-- **Provider-specific config**: Keep provider-specific fields (e.g. `nim_settings`) in provider constructors, not in the base `ProviderConfig`.
-- **Dead code**: Remove unused code, legacy systems, and hardcoded values. Use settings/config instead of literals (e.g. `settings.provider_type` not `"nvidia_nim"`).
-- **Performance**: Use list accumulation for strings (not `+=` in loops), cache env vars at init, prefer iterative over recursive when stack depth matters.
-- **Platform-agnostic naming**: Use generic names (e.g. `PLATFORM_EDIT`) not platform-specific ones (e.g. `TELEGRAM_EDIT`) in shared code.
-- **No type ignores**: Do not add `# type: ignore` or `# ty: ignore`. Fix the underlying type issue.
-- **Complete migrations**: When moving modules, update imports to the new owner and remove old compatibility shims in the same change unless preserving a published interface is explicitly required.
-- **Maximum Test Coverage**: There should be maximum test coverage for everything, preferably live smoke test coverage to catch bugs early
+## 6. Codebase Mapping & Token Budgeting (Save Tokens)
+- **Manifest First:** Never read entire directories or files recursively. Instead, run **`context-optimizer`** to generate a `CONTEXT_MANIFEST.md` for the project. Always reason from the manifest first.
+- **Scoping & Limits:** Restrict file reads to a maximum of 3 files per turn (strict blast radius control).
+- **Search Over Scan:** Use **`memory_recall`** / **`memory_smart_search`** or semantic tools to locate specific code blocks rather than bulk-grepping or listing deep directories.
+- **HAM Scoping:** Follow directory-specific context files using **`hierarchical-agent-memory`** to avoid loading parent context when working in subdirectories.
+- **Memory Logging on Edits:** Every time you modify files or apply updates, proactively use the **`memory_save`** skill to record the exact changes, the files touched, and the rationale so that future agents can retrieve them instantly without file scanning.
 
-## COGNITIVE WORKFLOW
+---
 
-1. **ANALYZE**: Read relevant files. Do not guess.
-2. **PLAN**: Map out the logic. Identify root cause or required changes. Order changes by dependency.
-3. **EXECUTE**: Fix the cause, not the symptom. Execute incrementally with clear commits.
-4. **VERIFY**: Run ci checks and relevant smoke tests. Confirm the fix via logs or output.
-5. **SPECIFICITY**: Do exactly as much as asked; nothing more, nothing less.
-6. **PROPAGATION**: Changes impact multiple files; propagate updates correctly.
-7. **VERSION**: If the commit touches production files on `main`, bump semver in the same commit (see [Versioning](#versioning-main)).
+## Core Principles
+1. **Simplicity First:** Make every code modification as small and targeted as possible.
+2. **No Laziness:** Identify and fix the true root cause; never use temporary patches or band-aids.
+3. **Minimal Impact:** Only touch files and logic that are strictly necessary to achieve the objective.
 
-## VERSIONING (MAIN)
+---
 
-Every commit on `main` that changes a **production file** must include a semver bump in **`pyproject.toml`** in the **same commit**. Do not merge or push prod changes without updating the version.
+## Domain-Specific Skill Mappings
+You are globally equipped with advanced skill packs. You MUST ALWAYS FOLLOW THESE RULES WITHOUT ANY EXCEPTION:
+- **Auto-Detection:** Proactively analyze the user's request and match it to the most relevant skill in your library of 300+ local skills (e.g. backend, database, styling, security, planning, memory).
+- **Proactive Invocation:** Before executing code changes, read the corresponding `SKILL.md` file of the matched skill and apply its exact design patterns and instructions. Do not wait for the user to specify or request the skill; choose and run it autonomously.
 
-### Production files
+### 1. Planning & Spec Compliance (`gsd` + `openspec` CLI + `grill-me`)
+- **Plan Phase:** Always initiate the planning phase by running the **`gsd-plan-phase`** checklist and creating a standard `PLAN.md` specification.
+- **Specification Design:** Use the **`openspec` CLI** (globally installed via npm) to manage specs, changes, validation, context stores, and workflows. Run `openspec init` in projects, `openspec spec` to manage specs, `openspec change` for change proposals, `openspec validate` to verify, and `openspec context-store` for local context.
+- **Spec Phase:** Use **`gsd-spec-phase`** to clarify WHAT a phase delivers with ambiguity scoring before discuss-phase.
+- **Traceability:** Check milestone readiness using **`gsd-progress`**.
+- **Interactive Interview / Stress-testing:** Invoke the **`grill-me`** skill when starting a phase or plan where design assumptions need to be stress-tested, or if the user explicitly asks to be grilled on design details.
 
-These paths count as production (runtime, packaging, or install surface):
+### 2. Frontend Development & Design (`taste-skill` + `ui-ux-pro-max`)
+When designing, modifying, or creating UI components, styles, layouts, or stylesheets:
+- **Design Intelligence:** Invoke **`ui-ux-pro-max`** for 50+ styles, 161 color palettes, 57 font pairings, 161 product types, 99 UX guidelines, and 25 chart types across 10 tech stacks. Use for ALL design decisions --- page layouts, component creation, color schemes, typography, spacing, animations, and responsive behavior.
+- **Visual Design:** Invoke **`design-taste-frontend`** and **`high-end-visual-design`** to enforce curated color palettes, elegant gradients, and layout structure (Bento grids, fluid containers).
+- **Design Tokens & Systems:** Use **`stitch-design-taste`** to verify token styling constraints and consistency.
+- **Styling Standards:** Leverage **`industrial-brutalist-ui`** or **`minimalist-ui`** for modern styling guidelines, and **`full-output-enforcement`** to inspect breakpoints and alignment.
 
-- `api/`, `cli/`, `config/`, `core/`, `messaging/`, `providers/`
-- `.env.example`
-- `pyproject.toml` (dependencies, scripts, packaging)
-- `scripts/install.sh`, `scripts/install.ps1`
+### 3. Backend Development
+- **Language/Framework Stacks:** Use targeted backend skills (**`dotnet-backend`**, **`django-pro`**, **`fastapi-pro`**, **`nestjs-expert`**, **`hono`**, **`golang-pro`**, **`rust-pro`**, **`typescript-pro`**).
+- **Testing workflows:** Use **`laravel-tdd`** to guide unit and integration testing workflows.
 
-These do **not** require a version bump on their own:
+### 4. Database Operations & Optimization
+- **Optimization:** Use **`database-admin`**, **`neon-postgres`**, **`postgres-best-practices`**, and **`postgresql-optimization`** to design database models, query filters, indices, and transaction boundaries.
 
-- `tests/`, `smoke/`
-- Docs and assets: `README.md`, `assets/`, `AGENTS.md`, `CLAUDE.md`
-- CI and repo config: `.github/`, `.gitignore`
+### 5. Context, Memory & Knowledge Management (`agentmemory` + context skills)
+- **Persistent Memory (agentmemory):** Use **`memory_save`** to save insights/decisions to long-term storage. Use **`memory_recall`** to search past observations/sessions via hybrid BM25+vector+graph search. Use **`agentmemory-handoff`** to resume previous sessions. Use **`agentmemory-recap`** for session rollups. Use **`agentmemory-session-history`** for past session overview. Use **`agentmemory-forget`** to delete specific memories. Use **`agentmemory-commit-context`** to trace code back to the agent session that produced it. Use **`agentmemory-commit-history`** to list agent-linked commits.
+- **Context Optimization:** Use **`context-optimizer`** to generate `CONTEXT_MANIFEST.md` files for 5x-27x token reduction. Use **`context-optimization`** for token budgeting, caching, and partitioning strategies. Use **`context-manager`** for vector DB and knowledge graph context engineering.
+- **Session Continuity:** Use **`context-management-context-save`** to persist context between sessions. Use **`context-management-context-restore`** to restore context in new sessions. Use **`hierarchical-agent-memory`** for scoped directory-level context files that reduce token spend.
+- **Memory Architecture:** Use **`agent-memory-systems`** for designing short-term/long-term/vector store memory architectures. Use **`conversation-memory`** for persistent conversation memory patterns.
+- **RAG & Knowledge Graphs:** Use **`lightrag`** for entity-relation knowledge graph building and multi-mode retrieval (local, global, hybrid, mix, naive) when working with document-based RAG systems.
 
-If a single commit mixes production and non-production edits, still bump the version.
-
-### Semver rules
-
-Use `[project].version` as `MAJOR.MINOR.PATCH`:
-
-- **PATCH** (`x.y.Z+1`): bug fixes, refactors with no user-visible behavior change, dependency updates, packaging/install fixes.
-- **MINOR** (`x.Y+1.0`): backward-compatible features—new providers, admin fields, CLI commands, config options, or behavior additions.
-- **MAJOR** (`X+1.0.0`): breaking changes—removed or renamed env vars, incompatible API/CLI/default changes, or migrations users must act on.
-
-When unsure between PATCH and MINOR, prefer PATCH for fixes and MINOR for new capability.
-
-### Required steps
-
-1. Classify the change and choose the bump level.
-2. Update `version` in `pyproject.toml`.
-3. Run `uv lock` so `uv.lock` reflects the new package version.
-4. Include the version and lockfile updates in the same commit as the production change.
-
-Example commit on `main` after a packaging fix: bump `1.2.38` → `1.2.39`, run `uv lock`, commit together with the fix.
-
-## SUMMARY STANDARDS
-
-- Summaries must be technical and granular.
-- Include: [Files Changed], [Logic Altered], [Verification Method], [Residual Risks] (if no residual risks then say none).
-
-## TOOLS
-
-- Prefer built-in tools (grep, read_file, etc.) over manual workflows. Check tool availability before use.
+### 6. Execution, Verification & Diagnostics
+- **Execution Phase:** Deploy implementation changes under the **`gsd-execute-phase`** pipeline.
+- **UAT & Verification:** Perform manual checks via **`gsd-verify-work`** and audit validation issues using **`gsd-validate-phase`** and **`gsd-ship`**.
+- **Diagnostics:** Resolve bugs using **`systematic-debugging`**, **`debugger`**, and **`ecc-guide`**. Use **`configure-ecc`** for ECC installation and **`ecc-tools-cost-audit`** for cost/billing audits.

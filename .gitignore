@@ -15,3 +15,5 @@ debug-*.log
 llama_cache
 .smoke-results
 .vscode
+claudecode-setup/
+DESIGN.md

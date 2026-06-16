@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from .analytics import AnalyticsEngine
+from .cache import ResponseCache
 from .circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerOpenError,
@@ -22,6 +24,7 @@ from .retry import calculate_delay, retry
 from .watchdog import StreamingTimeoutError, watchdog_stream
 
 __all__ = [
+    "AnalyticsEngine",
     "CircuitBreaker",
     "CircuitBreakerOpenError",
     "CircuitBreakerState",
@@ -30,6 +33,7 @@ __all__ = [
     "KeyPool",
     "RequestDeduplicator",
     "RequestQueue",
+    "ResponseCache",
     "StreamingTimeoutError",
     "calculate_delay",
     "get_active_provider_ids",

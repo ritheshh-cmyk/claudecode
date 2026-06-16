@@ -72,6 +72,13 @@ def get_proxy_service(
             )
         ),
         token_counter=get_token_count,
+        circuit_breaker=getattr(request.app.state, "circuit_breaker", None),
+        key_pool=getattr(request.app.state, "key_pool", None),
+        request_queue=getattr(request.app.state, "request_queue", None),
+        dead_letter_queue=getattr(request.app.state, "dead_letter_queue", None),
+        deduplicator=getattr(request.app.state, "deduplicator", None),
+        cache=getattr(request.app.state, "cache", None),
+        analytics=getattr(request.app.state, "analytics", None),
     )
 
 
@@ -168,11 +175,12 @@ def _build_models_list_response(
 @router.post("/v1/messages")
 async def create_message(
     request_data: MessagesRequest,
+    request: Request,
     service: ClaudeProxyService = Depends(get_proxy_service),
     _auth=Depends(require_api_key),
 ):
     """Create a message (always streaming)."""
-    return service.create_message(request_data)
+    return service.create_message(request_data, headers=dict(request.headers))
 
 
 @router.api_route("/v1/messages", methods=["HEAD", "OPTIONS"])

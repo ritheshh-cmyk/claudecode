@@ -14,10 +14,20 @@ flowchart LR
 
     subgraph hosted["Hosted Providers"]
         nim(["NVIDIA NIM"])
-        kimi(["Kimi"])
-        wafer(["Wafer"])
         openrouter(["OpenRouter"])
+        gemini(["Gemini"])
         deepseek(["DeepSeek"])
+        mistral(["Mistral / Codestral"])
+        opencode(["OpenCode Zen/Go"])
+        wafer(["Wafer"])
+        kimi(["Kimi"])
+        cerebras(["Cerebras"])
+        groq(["Groq"])
+        fireworks(["Fireworks AI"])
+        zai(["Z.ai"])
+        aerolink(["Aerolink"])
+        github_models(["GitHub Models"])
+        openai(["OpenAI"])
     end
 
     subgraph local["Local Providers"]
@@ -48,4 +58,4 @@ flowchart LR
     class admin,router proxy;
     class config config;
     class optimize,normalize,adapters transform;
-    class nim,kimi,wafer,openrouter,deepseek,lmstudio,llamacpp,ollama provider;
+    class nim,openrouter,gemini,deepseek,mistral,opencode,wafer,kimi,cerebras,groq,fireworks,zai,aerolink,github_models,openai,lmstudio,llamacpp,ollama provider;

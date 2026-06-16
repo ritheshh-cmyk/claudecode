@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import inspect
+import io
 import ipaddress
 import os
 import time
@@ -87,7 +89,16 @@ def _asset_response(filename: str) -> FileResponse:
 @router.get("/admin", include_in_schema=False)
 async def admin_page(request: Request):
     require_loopback_admin(request)
-    return _asset_response("index.html")
+    path = STATIC_DIR / "index.html"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Admin asset not found")
+    return FileResponse(
+        path,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+        },
+    )
 
 
 @router.get("/admin/assets/{filename}", include_in_schema=False)
@@ -408,3 +419,240 @@ async def _check_local_provider(
             "base_url": base_url,
             "error_type": type(exc).__name__,
         }
+
+
+# ==================== Key Pool Management Endpoints ====================
+
+
+class AddKeyPayload(BaseModel):
+    provider_id: str
+    key: str
+    alias: str | None = None
+    quota: int = 0
+
+
+class RevokeKeyPayload(BaseModel):
+    provider_id: str
+    key_hash: int
+
+
+class UpdateKeyPayload(BaseModel):
+    provider_id: str
+    key_hash: int
+    alias: str
+    quota: int
+
+
+class RemoveKeyPayload(BaseModel):
+    provider_id: str
+    key_hash: int
+
+
+class ImportKeysPayload(BaseModel):
+    csv_content: str
+
+
+class ValidateKeyPayload(BaseModel):
+    provider_id: str
+    key: str
+
+
+class CloneKeyPayload(BaseModel):
+    provider_id: str
+    key_hash: int
+    new_key: str
+    new_alias: str | None = None
+
+
+@router.get("/admin/api/keys")
+async def get_keys(request: Request):
+    require_loopback_admin(request)
+    key_pool = getattr(request.app.state, "key_pool", None)
+    if not key_pool:
+        return []
+    return await key_pool.get_all_keys_status()
+
+
+@router.post("/admin/api/keys/add")
+async def add_admin_key(payload: AddKeyPayload, request: Request):
+    require_loopback_admin(request)
+    key_pool = getattr(request.app.state, "key_pool", None)
+    if not key_pool:
+        raise HTTPException(status_code=500, detail="Key pool not initialized")
+    await key_pool.add_key(
+        provider_id=payload.provider_id,
+        key=payload.key,
+        alias=payload.alias,
+        quota=payload.quota,
+    )
+    return {"ok": True, "message": "Key added successfully"}
+
+
+@router.post("/admin/api/keys/clone")
+async def clone_admin_key(payload: CloneKeyPayload, request: Request):
+    require_loopback_admin(request)
+    key_pool = getattr(request.app.state, "key_pool", None)
+    if not key_pool:
+        raise HTTPException(status_code=500, detail="Key pool not initialized")
+
+    # Find the original key in the pool to copy its metadata
+    status_list = await key_pool.get_all_keys_status()
+    orig_key = None
+    for item in status_list:
+        if (
+            item["provider_id"] == payload.provider_id
+            and item["key_hash"] == payload.key_hash
+        ):
+            orig_key = item
+            break
+
+    if not orig_key:
+        raise HTTPException(status_code=404, detail="Original key not found")
+
+    alias = payload.new_alias or (
+        f"{orig_key['alias']}-clone" if orig_key.get("alias") else None
+    )
+    quota = orig_key.get("quota", 0)
+
+    await key_pool.add_key(
+        provider_id=payload.provider_id,
+        key=payload.new_key,
+        alias=alias,
+        quota=quota,
+    )
+    return {"ok": True, "message": "Key cloned successfully"}
+
+
+@router.post("/admin/api/keys/revoke")
+async def revoke_admin_key(payload: RevokeKeyPayload, request: Request):
+    require_loopback_admin(request)
+    key_pool = getattr(request.app.state, "key_pool", None)
+    if not key_pool:
+        raise HTTPException(status_code=500, detail="Key pool not initialized")
+    ok = await key_pool.toggle_revoke_key(payload.provider_id, payload.key_hash)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Key not found")
+    return {"ok": True, "message": "Key revocation status updated"}
+
+
+@router.post("/admin/api/keys/update")
+async def update_admin_key(payload: UpdateKeyPayload, request: Request):
+    require_loopback_admin(request)
+    key_pool = getattr(request.app.state, "key_pool", None)
+    if not key_pool:
+        raise HTTPException(status_code=500, detail="Key pool not initialized")
+    ok = await key_pool.update_key_meta(
+        provider_id=payload.provider_id,
+        key_hash=payload.key_hash,
+        alias=payload.alias,
+        quota=payload.quota,
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Key not found")
+    return {"ok": True, "message": "Key updated successfully"}
+
+
+@router.post("/admin/api/keys/remove")
+async def remove_admin_key(payload: RemoveKeyPayload, request: Request):
+    require_loopback_admin(request)
+    key_pool = getattr(request.app.state, "key_pool", None)
+    if not key_pool:
+        raise HTTPException(status_code=500, detail="Key pool not initialized")
+    ok = await key_pool.remove_key_by_hash(payload.provider_id, payload.key_hash)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Key not found")
+    return {"ok": True, "message": "Key removed successfully"}
+
+
+@router.post("/admin/api/keys/import")
+async def import_admin_keys(payload: ImportKeysPayload, request: Request):
+    require_loopback_admin(request)
+    key_pool = getattr(request.app.state, "key_pool", None)
+    if not key_pool:
+        raise HTTPException(status_code=500, detail="Key pool not initialized")
+
+    import csv
+
+    reader = csv.reader(payload.csv_content.strip().splitlines())
+    count = 0
+    for row in reader:
+        if not row or len(row) < 2:
+            continue
+        prov = row[0].strip()
+        key_val = row[1].strip()
+        alias = row[2].strip() if len(row) > 2 else None
+        quota = 0
+        if len(row) > 3:
+            with contextlib.suppress(ValueError):
+                quota = int(row[3].strip())
+        if prov and key_val:
+            await key_pool.add_key(
+                provider_id=prov, key=key_val, alias=alias, quota=quota
+            )
+            count += 1
+    return {"ok": True, "message": f"Successfully imported {count} keys"}
+
+
+@router.post("/admin/api/keys/validate")
+async def validate_admin_key(payload: ValidateKeyPayload, request: Request):
+    require_loopback_admin(request)
+    registry = getattr(request.app.state, "provider_registry", None)
+    if not registry:
+        from providers.registry import ProviderRegistry
+
+        registry = ProviderRegistry()
+    settings = get_cached_settings()
+    start_time = time.perf_counter()
+    try:
+        provider = registry.get(payload.provider_id, settings, api_key=payload.key)
+        model_infos = await provider.list_model_infos()
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
+        return {
+            "ok": True,
+            "latency_ms": latency_ms,
+            "models_count": len(model_infos),
+            "error": None,
+        }
+    except Exception as e:
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
+        return {
+            "ok": False,
+            "latency_ms": latency_ms,
+            "models_count": 0,
+            "error": f"{type(e).__name__}: {e}",
+        }
+
+
+# ==================== Analytics Observability Endpoints ====================
+
+
+@router.get("/admin/api/analytics/summary")
+async def get_analytics_summary(request: Request):
+    require_loopback_admin(request)
+    analytics = getattr(request.app.state, "analytics", None)
+    if not analytics:
+        return {}
+    return analytics.get_summary()
+
+
+@router.get("/admin/api/analytics/history")
+async def get_analytics_history(request: Request):
+    require_loopback_admin(request)
+    analytics = getattr(request.app.state, "analytics", None)
+    if not analytics:
+        return []
+    return analytics.get_history()
+
+
+@router.get("/admin/api/analytics/export")
+async def export_analytics_csv(request: Request):
+    require_loopback_admin(request)
+    analytics = getattr(request.app.state, "analytics", None)
+    if not analytics:
+        raise HTTPException(status_code=504, detail="Analytics not initialized")
+    csv_str = analytics.export_csv()
+    return StreamingResponse(
+        io.StringIO(csv_str),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=fcc_analytics.csv"},
+    )

@@ -7,14 +7,16 @@ Use Claude Code CLI, VS Code, JetBrains ACP, or chat bots through your own Anthr
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-3776ab.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json&style=for-the-badge)](https://github.com/astral-sh/uv)
-[![Tested with Pytest](https://img.shields.io/badge/testing-Pytest-00c0ff.svg?style=for-the-badge)](https://github.com/Alishahryar1/free-claude-code/actions/workflows/tests.yml)
+[![Tested with Pytest](https://img.shields.io/badge/testing-Pytest-00c0ff.svg?style=for-the-badge)](https://github.com/ritheshh-cmyk/claudecode/actions/workflows/tests.yml)
 [![Type checking: Ty](https://img.shields.io/badge/type%20checking-ty-ffcc00.svg?style=for-the-badge)](https://pypi.org/project/ty/)
 [![Code style: Ruff](https://img.shields.io/badge/code%20formatting-ruff-f5a623.svg?style=for-the-badge)](https://github.com/astral-sh/ruff)
 [![Logging: Loguru](https://img.shields.io/badge/logging-loguru-4ecdc4.svg?style=for-the-badge)](https://github.com/Delgan/loguru)
 
-Free Claude Code routes Anthropic Messages API traffic from Claude Code to any provider. It keeps Claude Code's client-side protocol stable while letting you choose free, paid, or local models.
+Free Claude Code (claudecode) routes Anthropic Messages API traffic from Claude Code to 20+ supported backends (including Aerolink, GitHub Models, OpenAI, Gemini, DeepSeek, and NVIDIA NIM). It keeps Claude Code's client-side protocol stable while letting you choose free, paid, or local models.
 
 [Quick Start](#quick-start) · [Providers](#choose-a-provider) · [Clients](#connect-claude-code) · [Integrations](#optional-integrations) · [Development](#development)
+
+<sub>Made with ❤️ by [ritheshh-cmyk](https://github.com/ritheshh-cmyk)</sub>
 
 </div>
 
@@ -28,22 +30,10 @@ Free Claude Code routes Anthropic Messages API traffic from Claude Code to any p
   <img src="assets/cc-model-picker.png" alt="Claude Code model picker showing gateway models" width="700">
 </div>
 
-## Star History
-
-<div align="center">
-  <a href="https://star-history.com/#Alishahryar1/free-claude-code&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Alishahryar1/free-claude-code&type=Date&theme=dark">
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Alishahryar1/free-claude-code&type=Date">
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Alishahryar1/free-claude-code&type=Date" width="700">
-    </picture>
-  </a>
-</div>
-
 ## What You Get
 
 - Drop-in proxy for Claude Code's Anthropic API calls.
-- 17 provider backends: NVIDIA NIM, OpenRouter, Google AI Studio (Gemini), DeepSeek, Mistral La Plateforme, Mistral Codestral, OpenCode Zen, OpenCode Go, Wafer, Kimi, Cerebras Inference, Groq, Fireworks AI, Z.ai, LM Studio, llama.cpp, and Ollama.
+- 20 provider backends: NVIDIA NIM, OpenRouter, Google AI Studio (Gemini), DeepSeek, Mistral La Plateforme, Mistral Codestral, OpenCode Zen, OpenCode Go, Wafer, Kimi, Cerebras Inference, Groq, Fireworks AI, Z.ai, LM Studio, llama.cpp, Ollama, Aerolink, GitHub Models, and OpenAI.
 - Per-model routing: send Opus, Sonnet, Haiku, and fallback traffic to different providers.
 - Native Claude Code `/model` picker support through the proxy's `/v1/models` endpoint (see [Model Picker](#model-picker)).
 - Streaming, tool use, reasoning/thinking block handling, and local request optimizations.
@@ -59,16 +49,16 @@ Free Claude Code routes Anthropic Messages API traffic from Claude Code to any p
 macOS/Linux:
 
 ```bash
-curl -fsSL "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.sh?raw=1" | sh
+curl -fsSL "https://github.com/ritheshh-cmyk/claudecode/blob/main/scripts/install.sh?raw=1" | sh
 ```
 
 Windows PowerShell:
 
 ```powershell
-irm "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.ps1?raw=1" | iex
+irm "https://github.com/ritheshh-cmyk/claudecode/blob/main/scripts/install.ps1?raw=1" | iex
 ```
 
-Review the installers at [scripts/install.sh](https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.sh) and [scripts/install.ps1](https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.ps1). Re-run these commands to update to the latest version.
+Review the installers at [scripts/install.sh](https://github.com/ritheshh-cmyk/claudecode/blob/main/scripts/install.sh) and [scripts/install.ps1](https://github.com/ritheshh-cmyk/claudecode/blob/main/scripts/install.ps1). Re-run these commands to update to the latest version.
 
 ### 2. Start The Proxy
 
@@ -84,19 +74,19 @@ INFO:     Admin UI: http://127.0.0.1:8082/admin (local-only)
 
 Many terminals make these clickable. Use your configured `PORT` if it is not `8082`.
 
-### 3. Open The Admin UI And Configure NVIDIA NIM
+### 3. Open The Admin UI And Configure Your Provider
 
 Open the **Admin UI** URL from the terminal output.
 
-Need an NVIDIA NIM API key? Use the **[NVIDIA NIM provider](#nvidia-nim-provider)** section below, then scroll back up here.
+Need an API key for your preferred provider (such as Aerolink, GitHub Models, OpenAI, Gemini, or NVIDIA NIM)? Scroll down to the **[Choose A Provider](#choose-a-provider)** section to find out how to get keys for each.
 
 <div align="center">
-  <img src="assets/admin-page.png" alt="Local admin UI for proxy settings" width="700">
+  <img src="assets/admin_ui.png" alt="Local admin UI for proxy settings" width="700">
 </div>
 
-Paste your NVIDIA NIM API key into `NVIDIA_NIM_API_KEY`, then click **Validate** and **Apply**.
+Paste your provider API key (e.g., `AEROLINK_API_KEY`, `GITHUB_TOKEN`, `OPENAI_API_KEY`, or `NVIDIA_NIM_API_KEY`) into the corresponding field in the Admin UI, then click **Validate** and **Apply**.
 
-The default model is already set to `nvidia_nim/nvidia/nemotron-3-super-120b-a12b`. You can change it later from the same Admin UI.
+Set your preferred default model (e.g. `aerolink/claude-3-5-sonnet`, `github_models/gpt-4o`, `openai/gpt-4o`, or `nvidia_nim/nvidia/nemotron-3-super-120b-a12b`) using the `MODEL` setting under **Model Config** in the Admin UI.
 
 ### 4. Run Claude Code
 
@@ -304,7 +294,19 @@ In the Admin UI, keep or update `OLLAMA_BASE_URL`, then set `MODEL` to the same 
 
 `OLLAMA_BASE_URL` is the Ollama server root; do not append `/v1`. Example model slugs include `ollama/llama3.1` and `ollama/llama3.1:8b`.
 
-### 18. Mix Providers By Model Tier
+### 18. [Aerolink](https://aerolink.lat/)
+
+Get an API key at [aerolink.lat](https://aerolink.lat/). In the Admin UI, paste your key into `AEROLINK_API_KEY`, then set `MODEL` to your preferred model slug, prefixed with `aerolink/` (e.g. `aerolink/claude-3-5-sonnet`).
+
+### 19. [GitHub Models](https://github.com/marketplace/models)
+
+Get a personal access token with access to GitHub Models. In the Admin UI, paste your token into `GITHUB_MODELS_API_KEY`, then set `MODEL` to a model slug, prefixed with `github_models/` (e.g. `github_models/gpt-4o`).
+
+### 20. [OpenAI](https://platform.openai.com/)
+
+Get an API key at [platform.openai.com](https://platform.openai.com/). In the Admin UI, paste your key into `OPENAI_API_KEY`, then set `MODEL` to an OpenAI model slug, prefixed with `openai/` (e.g. `openai/gpt-4o`).
+
+### 21. Mix Providers By Model Tier
 
 Each model tier can use a different provider by setting `MODEL_OPUS`, `MODEL_SONNET`, and `MODEL_HAIKU` in the Admin UI. Leave a tier blank to inherit `MODEL`.
 
@@ -406,32 +408,32 @@ macOS/Linux:
 
 ```bash
 # NVIDIA NIM transcription (Riva gRPC)
-curl -fsSL "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.sh?raw=1" | sh -s -- --voice-nim
+curl -fsSL "https://github.com/ritheshh-cmyk/claudecode/blob/main/scripts/install.sh?raw=1" | sh -s -- --voice-nim
 
 # Local Whisper (CPU or CUDA)
-curl -fsSL "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.sh?raw=1" | sh -s -- --voice-local
+curl -fsSL "https://github.com/ritheshh-cmyk/claudecode/blob/main/scripts/install.sh?raw=1" | sh -s -- --voice-local
 
 # Both backends
-curl -fsSL "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.sh?raw=1" | sh -s -- --voice-all
+curl -fsSL "https://github.com/ritheshh-cmyk/claudecode/blob/main/scripts/install.sh?raw=1" | sh -s -- --voice-all
 
 # Local Whisper with CUDA
-curl -fsSL "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.sh?raw=1" | sh -s -- --voice-local --torch-backend cu130
+curl -fsSL "https://github.com/ritheshh-cmyk/claudecode/blob/main/scripts/install.sh?raw=1" | sh -s -- --voice-local --torch-backend cu130
 ```
 
 Windows PowerShell:
 
 ```powershell
 # NVIDIA NIM transcription (Riva gRPC)
-& ([scriptblock]::Create((irm "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.ps1?raw=1"))) -VoiceNim
+& ([scriptblock]::Create((irm "https://github.com/ritheshh-cmyk/claudecode/blob/main/scripts/install.ps1?raw=1"))) -VoiceNim
 
 # Local Whisper (CPU or CUDA)
-& ([scriptblock]::Create((irm "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.ps1?raw=1"))) -VoiceLocal
+& ([scriptblock]::Create((irm "https://github.com/ritheshh-cmyk/claudecode/blob/main/scripts/install.ps1?raw=1"))) -VoiceLocal
 
 # Both backends
-& ([scriptblock]::Create((irm "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.ps1?raw=1"))) -VoiceAll
+& ([scriptblock]::Create((irm "https://github.com/ritheshh-cmyk/claudecode/blob/main/scripts/install.ps1?raw=1"))) -VoiceAll
 
 # Local Whisper with CUDA
-& ([scriptblock]::Create((irm "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.ps1?raw=1"))) -VoiceLocal -TorchBackend cu130
+& ([scriptblock]::Create((irm "https://github.com/ritheshh-cmyk/claudecode/blob/main/scripts/install.ps1?raw=1"))) -VoiceLocal -TorchBackend cu130
 ```
 
 Restart `fcc-server` after reinstalling.
@@ -441,8 +443,72 @@ In the **Admin UI**, open **Messaging** and scroll to **Voice**. Turn on **Voice
 ## How It Works
 
 <div align="center">
-  <img src="assets/how-it-works.svg" alt="Free Claude Code request flow architecture" width="900">
+  <img src="assets/how-it-works.png" alt="Free Claude Code request flow architecture" width="900">
 </div>
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Inter, ui-sans-serif, system-ui, Segoe UI, Arial", "background": "transparent", "primaryTextColor": "#ffffff", "lineColor": "#718096"}}}%%
+flowchart LR
+    client(["Claude Code<br/>CLI / IDE / Bots"])
+    api["Anthropic-compatible API<br/>/v1/messages, /v1/models"]
+
+    subgraph proxy["Free Claude Code Proxy :8082"]
+        admin["Local Admin UI<br/>keys, models, status"]
+        config[("Managed Config<br/>~/.fcc/.env")]
+        router{"Model Router<br/>Opus / Sonnet / Haiku"}
+        optimize["Request Optimizations<br/>cheap local probes"]
+        normalize["Protocol Normalizer<br/>streaming, tools, thinking"]
+        adapters["Provider Adapters<br/>Anthropic + OpenAI-compatible"]
+    end
+
+    subgraph hosted["Hosted Providers"]
+        nim(["NVIDIA NIM"])
+        openrouter(["OpenRouter"])
+        gemini(["Gemini"])
+        deepseek(["DeepSeek"])
+        mistral(["Mistral / Codestral"])
+        opencode(["OpenCode Zen/Go"])
+        wafer(["Wafer"])
+        kimi(["Kimi"])
+        cerebras(["Cerebras"])
+        groq(["Groq"])
+        fireworks(["Fireworks AI"])
+        zai(["Z.ai"])
+        aerolink(["Aerolink"])
+        github_models(["GitHub Models"])
+        openai(["OpenAI"])
+    end
+
+    subgraph local["Local Providers"]
+        lmstudio(["LM Studio"])
+        llamacpp(["llama.cpp"])
+        ollama(["Ollama"])
+    end
+
+    client -->|"Anthropic Messages"| api
+    api --> router
+    admin --> config
+    config --> router
+    router --> optimize
+    optimize --> normalize
+    normalize --> adapters
+    adapters --> hosted
+    adapters --> local
+
+    classDef client fill:#efe7ff,stroke:#7c3aed,stroke-width:2px,color:#2e1065;
+    classDef api fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#172554;
+    classDef proxy fill:#ecfeff,stroke:#0891b2,stroke-width:2px,color:#164e63;
+    classDef config fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f;
+    classDef transform fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d;
+    classDef provider fill:#fff7ed,stroke:#ea580c,stroke-width:2px,color:#7c2d12;
+
+    class client client;
+    class api api;
+    class admin,router proxy;
+    class config config;
+    class optimize,normalize,adapters transform;
+    class nim,openrouter,gemini,deepseek,mistral,opencode,wafer,kimi,cerebras,groq,fireworks,zai,aerolink,github_models,openai,lmstudio,llamacpp,ollama provider;
+```
 
 Diagram source: [`assets/how-it-works.mmd`](assets/how-it-works.mmd).
 
@@ -460,7 +526,7 @@ Important pieces:
 ### 1. Project Structure
 
 ```text
-free-claude-code/
+claudecode/
 ├── server.py              # ASGI entry point
 ├── api/                   # FastAPI routes, service layer, routing, optimizations
 ├── core/                  # Shared Anthropic protocol helpers and SSE utilities
@@ -476,8 +542,8 @@ free-claude-code/
 Use this path if you are developing or want to run directly from a checkout:
 
 ```bash
-git clone https://github.com/Alishahryar1/free-claude-code.git
-cd free-claude-code
+git clone https://github.com/ritheshh-cmyk/claudecode.git
+cd claudecode
 uv run uvicorn server:app --host 0.0.0.0 --port 8082
 ```
 
@@ -511,12 +577,19 @@ Run them in that order before pushing. CI enforces the same checks.
 ## Contributing
 
 - [`.env.example`](.env.example) lists env key names as a read-only reference for contributors; use the **Admin UI** to change managed proxy settings.
-- Report bugs and feature requests in [Issues](https://github.com/Alishahryar1/free-claude-code/issues). For bug always include all model mapping, current model when issue occured and the issue string
+- Report bugs and feature requests in [Issues](https://github.com/ritheshh-cmyk/claudecode/issues). For bug always include all model mapping, current model when issue occured and the issue string
 - Keep changes small and covered by focused tests.
 - Do not open Docker integration PRs.
 - Do not open README change PRs just open an issue for it.
 - Run the full check sequence before opening a pull request.
 - The syntax `except X, Y` is brought back in python 3.14 final version (not in 3.14 alpha). Keep in mind before opening PRs.
+
+## Credits
+
+This repository is a fork of the original work:
+- **[Alishahryar1/free-claude-code](https://github.com/Alishahryar1/free-claude-code)**
+
+All credits and thanks go to the original creators and contributors.
 
 ## License
 

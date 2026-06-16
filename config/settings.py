@@ -209,6 +209,85 @@ class Settings(BaseSettings):
     heartbeat_interval: int = Field(default=60, validation_alias="HEARTBEAT_INTERVAL")
     blackout_windows: str = Field(default="", validation_alias="BLACKOUT_WINDOWS")
 
+    # ==================== Advanced Proxy Features (Phases 2, 3, & 4) ====================
+    enable_exact_cache: bool = Field(
+        default=True, validation_alias="ENABLE_EXACT_CACHE"
+    )
+    enable_semantic_cache: bool = Field(
+        default=False, validation_alias="ENABLE_SEMANTIC_CACHE"
+    )
+    cache_ttl: int = Field(default=3600, validation_alias="CACHE_TTL")
+    cache_max_size: int = Field(default=128, validation_alias="CACHE_MAX_SIZE")
+    semantic_cache_threshold: float = Field(
+        default=0.90, validation_alias="SEMANTIC_CACHE_THRESHOLD"
+    )
+    load_balancer_weights: str = Field(
+        default="", validation_alias="LOAD_BALANCER_WEIGHTS"
+    )
+    enable_parallel_provider_race: bool = Field(
+        default=False, validation_alias="ENABLE_PARALLEL_PROVIDER_RACE"
+    )
+    max_tokens_budget: int = Field(default=0, validation_alias="MAX_TOKENS_BUDGET")
+    key_rotation_schedule_minutes: int = Field(
+        default=0, validation_alias="KEY_ROTATION_SCHEDULE_MINUTES"
+    )
+
+    # ==================== Smart Routing (Phase 6) ====================
+    enable_context_length_routing: bool = Field(
+        default=False, validation_alias="ENABLE_CONTEXT_LENGTH_ROUTING"
+    )
+    context_length_threshold: int = Field(
+        default=100000, validation_alias="CONTEXT_LENGTH_THRESHOLD"
+    )
+    context_length_provider_model: str = Field(
+        default="gemini/gemini-2.5-pro",
+        validation_alias="CONTEXT_LENGTH_PROVIDER_MODEL",
+    )
+    enable_cost_aware_routing: bool = Field(
+        default=False, validation_alias="ENABLE_COST_AWARE_ROUTING"
+    )
+    enable_task_type_routing: bool = Field(
+        default=False, validation_alias="ENABLE_TASK_TYPE_ROUTING"
+    )
+    enable_time_based_routing: bool = Field(
+        default=False, validation_alias="ENABLE_TIME_BASED_ROUTING"
+    )
+    time_based_night_start: int = Field(
+        default=22, validation_alias="TIME_BASED_NIGHT_START"
+    )
+    time_based_night_end: int = Field(
+        default=7, validation_alias="TIME_BASED_NIGHT_END"
+    )
+    model_aliases: str = Field(default="", validation_alias="MODEL_ALIASES")
+    provider_priority_groups: str = Field(
+        default="", validation_alias="PROVIDER_PRIORITY_GROUPS"
+    )
+    enable_shadow_mode: bool = Field(
+        default=False, validation_alias="ENABLE_SHADOW_MODE"
+    )
+    shadow_provider_model: str = Field(
+        default="", validation_alias="SHADOW_PROVIDER_MODEL"
+    )
+    enable_canary_mode: bool = Field(
+        default=False, validation_alias="ENABLE_CANARY_MODE"
+    )
+    canary_provider_model: str = Field(
+        default="", validation_alias="CANARY_PROVIDER_MODEL"
+    )
+    canary_percentage: float = Field(default=5.0, validation_alias="CANARY_PERCENTAGE")
+    enable_sticky_sessions: bool = Field(
+        default=False, validation_alias="ENABLE_STICKY_SESSIONS"
+    )
+    enable_failover_memory: bool = Field(
+        default=False, validation_alias="ENABLE_FAILOVER_MEMORY"
+    )
+    enable_language_routing: bool = Field(
+        default=False, validation_alias="ENABLE_LANGUAGE_ROUTING"
+    )
+    enable_tool_use_routing: bool = Field(
+        default=False, validation_alias="ENABLE_TOOL_USE_ROUTING"
+    )
+
     # ==================== Provider Rate Limiting ====================
     provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")
     provider_rate_window: int = Field(

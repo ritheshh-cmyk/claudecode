@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-REPO_GIT_URL="git+https://github.com/Alishahryar1/free-claude-code.git"
+REPO_GIT_URL="git+https://github.com/ritheshh-cmyk/claudecode.git"
 PYTHON_VERSION="3.14.0"
 MIN_UV_VERSION="0.11.0"
 UV_INSTALL_URL="https://astral.sh/uv/install.sh"
@@ -92,6 +92,21 @@ add_uv_to_path() {
     fi
 
     export PATH
+
+    if [ -n "${HOME:-}" ]; then
+        SHELL_PROFILE=""
+        if [ -f "$HOME/.zshrc" ]; then
+            SHELL_PROFILE="$HOME/.zshrc"
+        elif [ -f "$HOME/.bashrc" ]; then
+            SHELL_PROFILE="$HOME/.bashrc"
+        fi
+        if [ -n "$SHELL_PROFILE" ]; then
+            if ! grep -q '\.local/bin' "$SHELL_PROFILE"; then
+                echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_PROFILE"
+                printf 'Added ~/.local/bin to your PATH in %s\n' "$SHELL_PROFILE"
+            fi
+        fi
+    fi
 }
 
 require_command() {
@@ -291,14 +306,24 @@ package_spec() {
         fail "--torch-backend requires --voice-local or --voice-all."
     fi
 
-    if [ "$include_nim" -eq 1 ] && [ "$include_local" -eq 1 ]; then
-        printf 'free-claude-code[voice,voice_local] @ %s' "$REPO_GIT_URL"
-    elif [ "$include_nim" -eq 1 ]; then
-        printf 'free-claude-code[voice] @ %s' "$REPO_GIT_URL"
-    elif [ "$include_local" -eq 1 ]; then
-        printf 'free-claude-code[voice_local] @ %s' "$REPO_GIT_URL"
+    if [ -f "pyproject.toml" ]; then
+        INSTALL_SOURCE="."
     else
-        printf '%s' "$REPO_GIT_URL"
+        INSTALL_SOURCE="$REPO_GIT_URL"
+    fi
+
+    if [ "$include_nim" -eq 1 ] && [ "$include_local" -eq 1 ]; then
+        printf 'free-claude-code[voice,voice_local] @ %s' "$INSTALL_SOURCE"
+    elif [ "$include_nim" -eq 1 ]; then
+        printf 'free-claude-code[voice] @ %s' "$INSTALL_SOURCE"
+    elif [ "$include_local" -eq 1 ]; then
+        printf 'free-claude-code[voice_local] @ %s' "$INSTALL_SOURCE"
+    else
+        if [ "$INSTALL_SOURCE" = "." ]; then
+            printf '.'
+        else
+            printf '%s' "$INSTALL_SOURCE"
+        fi
     fi
 }
 
@@ -326,5 +351,23 @@ run uv python install "$PYTHON_VERSION"
 
 step "Installing or updating Free Claude Code"
 install_free_claude_code
+
+step "Configuring environment templates"
+mkdir -p "$HOME/.fcc/profiles"
+mkdir -p "$HOME/.fcc/logs"
+
+if [ ! -f "$HOME/.fcc/.env" ]; then
+    if [ -f ".env.example" ]; then
+        cp .env.example "$HOME/.fcc/.env"
+        printf 'Created config at ~/.fcc/.env from local template.\n'
+    else
+        printf 'Downloading config template from GitHub...\n'
+        curl -LsSf "https://raw.githubusercontent.com/ritheshh-cmyk/claudecode/main/.env.example" -o "$HOME/.fcc/.env" || \
+        wget -qO "$HOME/.fcc/.env" "https://raw.githubusercontent.com/ritheshh-cmyk/claudecode/main/.env.example" || \
+        printf 'Warning: Could not download .env.example automatically.\n'
+    fi
+else
+    printf 'Config file already exists at ~/.fcc/.env (skipping)\n'
+fi
 
 printf '\nFree Claude Code is installed. Start the proxy with: fcc-server\n'
