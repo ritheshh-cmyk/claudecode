@@ -1,5 +1,6 @@
 from core.anthropic.native_messages_request import (
     sanitize_native_messages_thinking_policy,
+    sanitize_native_messages_tools,
 )
 
 
@@ -63,4 +64,19 @@ def test_sanitize_native_messages_thinking_policy_enabled():
                 {"type": "text", "text": "actual response"},
             ],
         },
+    ]
+
+
+def test_sanitize_native_messages_tools():
+    tools = [
+        {"name": "my_custom_tool", "description": "some tool"},
+        {"name": "bash_tool", "type": "bash_20250124"},
+        {"name": "unsupported_tool", "type": "advisor_20260301"},
+        {"name": "web_search_tool", "type": "web_search_20260209"},
+    ]
+    sanitized = sanitize_native_messages_tools(tools)
+    assert sanitized == [
+        {"name": "my_custom_tool", "description": "some tool"},
+        {"name": "bash_tool", "type": "bash_20250124"},
+        {"name": "web_search_tool", "type": "web_search_20260209"},
     ]

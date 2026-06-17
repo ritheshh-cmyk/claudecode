@@ -216,6 +216,41 @@ def _apply_openrouter_reasoning_policy(body: dict[str, Any], thinking_cfg: Any) 
         reasoning.setdefault("max_tokens", budget_tokens)
 
 
+ALLOWED_GATEWAY_TOOL_TYPES = {
+    "bash_20250124",
+    "code_execution_20250522",
+    "code_execution_20250825",
+    "code_execution_20260120",
+    "custom",
+    "memory_20250818",
+    "text_editor_20250124",
+    "text_editor_20250429",
+    "text_editor_20250728",
+    "tool_search_tool_bm25",
+    "tool_search_tool_bm25_20251119",
+    "tool_search_tool_regex",
+    "tool_search_tool_regex_20251119",
+    "web_fetch_20250910",
+    "web_fetch_20260209",
+    "web_fetch_20260309",
+    "web_search_20250305",
+    "web_search_20260209",
+}
+
+
+def sanitize_native_messages_tools(tools: Any) -> Any:
+    """Filter out unsupported system tool types from request parameters."""
+    if not isinstance(tools, list):
+        return tools
+    return [
+        t
+        for t in tools
+        if not isinstance(t, dict)
+        or t.get("type") is None
+        or t.get("type") in ALLOWED_GATEWAY_TOOL_TYPES
+    ]
+
+
 def build_base_native_anthropic_request_body(
     request: Any,
     *,
@@ -244,6 +279,9 @@ def build_base_native_anthropic_request_body(
             body["messages"],
             thinking_enabled=thinking_enabled,
         )
+
+    if "tools" in body:
+        body["tools"] = sanitize_native_messages_tools(body["tools"])
 
     return body
 
@@ -280,5 +318,8 @@ def build_openrouter_native_request_body(
 
     if thinking_enabled:
         _apply_openrouter_reasoning_policy(body, thinking_cfg)
+
+    if "tools" in body:
+        body["tools"] = sanitize_native_messages_tools(body["tools"])
 
     return body
