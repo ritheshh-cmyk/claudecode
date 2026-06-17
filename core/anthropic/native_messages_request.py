@@ -174,7 +174,11 @@ def sanitize_native_messages_thinking_policy(
                 if not (
                     isinstance(block, dict)
                     and block.get("type") == "thinking"
-                    and not isinstance(block.get("signature"), str)
+                    and (
+                        not isinstance(block.get("signature"), str)
+                        or not block.get("thinking")
+                        or not str(block.get("thinking")).strip()
+                    )
                 )
             ]
 
