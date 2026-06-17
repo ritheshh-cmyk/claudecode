@@ -127,7 +127,7 @@ def test_model_router_routes_wafer_provider_model_directly(settings):
 def test_model_router_routes_gateway_encoded_provider_model_directly(settings):
     routed = ModelRouter(settings).resolve_messages_request(
         MessagesRequest(
-            model="anthropic/nvidia_nim/deepseek-ai/deepseek-v4-pro",
+            model="claude-freecc-thinking/nvidia_nim/deepseek-ai/deepseek-v4-pro",
             max_tokens=100,
             messages=[Message(role="user", content="hello")],
         )
@@ -136,13 +136,13 @@ def test_model_router_routes_gateway_encoded_provider_model_directly(settings):
     assert routed.request.model == "deepseek-ai/deepseek-v4-pro"
     assert (
         routed.resolved.original_model
-        == "anthropic/nvidia_nim/deepseek-ai/deepseek-v4-pro"
+        == "claude-freecc-thinking/nvidia_nim/deepseek-ai/deepseek-v4-pro"
     )
     assert routed.resolved.provider_id == "nvidia_nim"
     assert routed.resolved.provider_model == "deepseek-ai/deepseek-v4-pro"
     assert (
         routed.resolved.provider_model_ref
-        == "anthropic/nvidia_nim/deepseek-ai/deepseek-v4-pro"
+        == "claude-freecc-thinking/nvidia_nim/deepseek-ai/deepseek-v4-pro"
     )
 
 

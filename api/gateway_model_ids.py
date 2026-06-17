@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-GATEWAY_MODEL_ID_PREFIX = "anthropic"
+GATEWAY_MODEL_ID_PREFIX = "claude-freecc-thinking"
 
 # Claude Code currently treats any model id containing ``claude-3-`` as not
 # supporting thinking. This intentionally uses that client-side capability
