@@ -268,7 +268,7 @@ def build_base_native_anthropic_request_body(
             thinking_payload: dict[str, Any] = {"type": "enabled"}
             budget_tokens = thinking_cfg.get("budget_tokens")
             if isinstance(budget_tokens, int):
-                thinking_payload["budget_tokens"] = budget_tokens
+                thinking_payload["budget_tokens"] = max(budget_tokens, 1024)
             body["thinking"] = thinking_payload
 
     if "max_tokens" not in body:
