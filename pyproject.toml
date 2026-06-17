@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "free-claude-code"
-version = "1.5.8"
+version = "1.5.9"
 description = "Middleware gateway between Claude Code CLI and 20+ LLM providers (Aerolink, GitHub Models, OpenAI, Gemini, DeepSeek, NVIDIA NIM, etc.)"
 readme = "README.md"
 requires-python = ">=3.14.0"

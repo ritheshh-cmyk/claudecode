@@ -267,7 +267,7 @@ class ModelRouter:
                 logger.info(
                     "Time-Based Router: Night time detected. Routing to free provider."
                 )
-                model_name = "aerolink/claude-3-5-sonnet"
+                model_name = "aerolink/claude-sonnet-4-6"
 
         # 8. Canary Mode (70)
         elif getattr(self._settings, "enable_canary_mode", False):
@@ -287,7 +287,7 @@ class ModelRouter:
                 logger.info(
                     "Cost-Aware Router: Generic model requested. Directing to free provider to save cost."
                 )
-                model_name = "aerolink/claude-3-5-sonnet"
+                model_name = "aerolink/claude-sonnet-4-6"
 
         # 10. Failover Memory (72)
         if (

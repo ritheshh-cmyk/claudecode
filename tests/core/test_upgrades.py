@@ -271,7 +271,7 @@ def test_smart_routing_features() -> None:
     router = ModelRouter(settings)
     routed = router.resolve_messages_request(req_time)
     assert routed.resolved.provider_id == "aerolink"
-    assert routed.resolved.provider_model == "claude-3-5-sonnet"
+    assert routed.resolved.provider_model == "claude-sonnet-4-6"
     settings.enable_time_based_routing = False
 
     # 7. Canary Mode (70)
@@ -299,7 +299,7 @@ def test_smart_routing_features() -> None:
     router = ModelRouter(settings)
     routed = router.resolve_messages_request(req_cost)
     assert routed.resolved.provider_id == "aerolink"
-    assert routed.resolved.provider_model == "claude-3-5-sonnet"
+    assert routed.resolved.provider_model == "claude-sonnet-4-6"
     settings.enable_cost_aware_routing = False
 
     # 9. Failover Memory (72)
